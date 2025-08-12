@@ -205,6 +205,7 @@ export class GameScene extends Phaser.Scene {
       { text: 'Found a healing potion!', effect: () => this.player.health = Math.min(this.player.maxHealth, this.player.health + 20) },
       { text: 'Cursed by a witch! -5 health', effect: () => this.player.health = Math.max(1, this.player.health - 5) },
       { text: 'Lucky find! +15 coins', effect: () => this.player.coins += 15 }
+      { text: 'Found a Sword!', effect: () => this.player.attack += 15 }
     ];
     
     const event = events[Math.floor(Math.random() * events.length)];
