@@ -15,8 +15,8 @@ export class MenuScene extends Phaser.Scene {
     const centerY = this.cameras.main.height / 2;
 
     // Title
-    const title = this.add.text(centerX, centerY - 150, 'HEROLL', {
-      fontSize: '64px',
+    const title = this.add.text(centerX, centerY - 150, "KNIGHT'S GAMBIT", {
+      fontSize: '48px',
       color: '#ff6b6b',
       fontFamily: 'Courier New, monospace'
     }).setOrigin(0.5);

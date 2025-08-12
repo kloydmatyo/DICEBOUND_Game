@@ -41,7 +41,7 @@ export class CombatScene extends Phaser.Scene {
   private createCombatants() {
     // Player sprite (left side)
     this.playerSprite = this.add.rectangle(200, 300, 60, 60, 0xff6b6b);
-    this.add.text(200, 380, this.player.name || 'Hero', {
+    this.add.text(200, 380, this.player.name || 'Knight', {
       fontSize: '18px',
       color: '#ffffff',
       fontFamily: 'Courier New, monospace'
@@ -172,7 +172,7 @@ export class CombatScene extends Phaser.Scene {
     if (Math.random() < runChance) {
       this.showCombatMessage('You successfully ran away!');
       this.time.delayedCall(1500, () => {
-        this.scene.start('GameScene');
+        this.scene.start('GameScene', { gameState: this.gameState });
       });
     } else {
       this.showCombatMessage('You failed to run away!');
@@ -212,7 +212,7 @@ export class CombatScene extends Phaser.Scene {
     this.player.coins += this.enemy.coins;
     
     this.time.delayedCall(2000, () => {
-      this.scene.start('GameScene');
+      this.scene.start('GameScene', { gameState: this.gameState });
     });
   }
 

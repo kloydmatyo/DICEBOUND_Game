@@ -11,7 +11,7 @@ function createWindow() {
       contextIsolation: true,
     },
     // icon: path.join(__dirname, '../assets/icon.png'), // Uncomment when you have an icon
-    title: 'Heroll - Roguelike Board Game RPG'
+    title: "Knight's Gambit - Roguelike Board Game RPG"
   });
 
   // Check if we're in development mode by looking for the dev server or dist folder
@@ -19,7 +19,7 @@ function createWindow() {
   const isDev = process.env.NODE_ENV === 'development' || !fs.existsSync(distPath);
 
   if (isDev) {
-    mainWindow.loadURL('http://localhost:3000');
+    mainWindow.loadURL('http://localhost:3001');
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(distPath);

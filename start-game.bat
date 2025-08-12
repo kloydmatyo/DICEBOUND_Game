@@ -1,5 +1,5 @@
 @echo off
-echo 🎮 Starting Heroll - Roguelike Board Game RPG
+echo 🎮 Starting Knight's Gambit - Roguelike Board Game RPG
 echo.
 echo Choose your option:
 echo 1. Desktop App (Electron)
@@ -13,7 +13,7 @@ if "%choice%"=="1" (
     npm run electron
 ) else if "%choice%"=="2" (
     echo Starting web development server...
-    echo Open http://localhost:3000 in your browser
+    echo Open http://localhost:3001 in your browser
     npm run dev
 ) else if "%choice%"=="3" (
     echo Building game...

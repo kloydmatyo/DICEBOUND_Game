@@ -1,17 +1,17 @@
 {
-  "name": "heroll",
+  "name": "knights-gambit",
   "version": "1.0.0",
-  "description": "A 2D pixel art roguelike board-game RPG",
+  "description": "Knight's Gambit - A 2D pixel art roguelike board-game RPG",
   "main": "electron/main.js",
   "scripts": {
     "dev": "webpack serve --mode development",
     "build": "webpack --mode production",
     "electron": "electron .",
-    "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3001 && electron .\"",
     "dist": "npm run build && electron-builder"
   },
-  "keywords": ["game", "phaser", "typescript", "electron", "roguelike"],
-  "author": "Heroll Dev Team",
+  "keywords": ["game", "phaser", "typescript", "electron", "roguelike", "knight", "chess"],
+  "author": "Knight's Gambit Dev Team",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -30,8 +30,8 @@
     "phaser": "^3.70.0"
   },
   "build": {
-    "appId": "com.heroll.game",
-    "productName": "Heroll",
+    "appId": "com.knightsgambit.game",
+    "productName": "Knight's Gambit",
     "directories": {
       "output": "release"
     },

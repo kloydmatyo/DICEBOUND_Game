@@ -19,7 +19,7 @@ export class GameManager {
   private createPlayer(): Player {
     return {
       id: 'player1',
-      name: 'Hero',
+      name: 'Knight',
       level: 1,
       health: 100,
       maxHealth: 100,
@@ -105,7 +105,7 @@ export class GameManager {
 
   saveGame(gameState: GameState): void {
     try {
-      localStorage.setItem('heroll_save', JSON.stringify(gameState));
+      localStorage.setItem('knights_gambit_save', JSON.stringify(gameState));
     } catch (error) {
       console.error('Failed to save game:', error);
     }
@@ -113,7 +113,7 @@ export class GameManager {
 
   loadGame(): GameState | null {
     try {
-      const saveData = localStorage.getItem('heroll_save');
+      const saveData = localStorage.getItem('knights_gambit_save');
       return saveData ? JSON.parse(saveData) : null;
     } catch (error) {
       console.error('Failed to load game:', error);

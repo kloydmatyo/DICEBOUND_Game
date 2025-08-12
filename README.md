@@ -1,10 +1,10 @@
-# Heroll - Roguelike Board Game RPG
+# Knight's Gambit - Roguelike Board Game RPG
 
 A 2D pixel art roguelike board-game RPG built with Phaser 3, TypeScript, and Electron.
 
 ## Game Concept
 
-Travel around a looping circular board as a hero, rolling dice to move forward. Each tile triggers different events: battles, shops, treasure, random events, or boss fights. The board resets with new enemies and loot after each loop (floor).
+Travel around a looping circular board as a knight, rolling dice to move forward. Each tile triggers different events: battles, shops, treasure, random events, or boss fights. The board resets with new enemies and loot after each loop (floor).
 
 ## Features
 

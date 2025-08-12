@@ -16,13 +16,23 @@ export class GameScene extends Phaser.Scene {
     super({ key: 'GameScene' });
   }
 
+  init(data: any) {
+    // If game state is passed from another scene (like combat), use it
+    if (data && data.gameState) {
+      this.gameState = data.gameState;
+      this.player = this.gameState.player;
+    }
+  }
+
   create() {
     this.gameManager = new GameManager();
     this.boardManager = new BoardManager(this);
     
-    // Initialize game state
-    this.gameState = this.gameManager.initializeGame();
-    this.player = this.gameState.player;
+    // Initialize game state only if not already set
+    if (!this.gameState) {
+      this.gameState = this.gameManager.initializeGame();
+      this.player = this.gameState.player;
+    }
 
     // Create the board
     this.boardManager.createBoard(this.gameState.board);
@@ -38,8 +48,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createPlayer() {
-    const startTile = this.gameState.board[0];
-    this.playerSprite = this.add.rectangle(startTile.x, startTile.y, 20, 20, 0xff6b6b);
+    const currentTile = this.gameState.board[this.player.position];
+    this.playerSprite = this.add.rectangle(currentTile.x, currentTile.y, 20, 20, 0xff6b6b);
   }
 
   private createUI() {
