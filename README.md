@@ -1,99 +1,114 @@
 # Heroll - Roguelike Board Game RPG
 
-A 2D pixel art roguelike board-game RPG built with Phaser 3 and TypeScript. Roll dice to move around a circular board, fight enemies, collect treasure, and progress through increasingly difficult floors!
+A 2D pixel art roguelike board-game RPG built with Phaser 3, TypeScript, and Electron.
+
+## Game Concept
+
+Travel around a looping circular board as a hero, rolling dice to move forward. Each tile triggers different events: battles, shops, treasure, random events, or boss fights. The board resets with new enemies and loot after each loop (floor).
 
 ## Features
 
-- **Circular Board Gameplay**: Roll dice to move around a looping board with different tile types
-- **Turn-Based Combat**: Strategic combat system with attack, defend, and run options
-- **Progression System**: Level up your hero, gain stats, and collect coins
-- **Multiple Tile Types**:
-  - Enemy tiles → Turn-based combat encounters
-  - Treasure tiles → Collect coins and items
-  - Shop tiles → Buy equipment and consumables
-  - Event tiles → Random effects (healing, traps, stat boosts)
-  - Boss tiles → Challenging fights that advance floors
-- **Save System**: Automatic save/load functionality using localStorage
-- **Responsive Design**: Works on both desktop and mobile browsers
+### Core Gameplay
+- **Circular Board**: 20-tile looping board with different tile types
+- **Dice Rolling**: Roll 1-6 to move around the board
+- **Turn-Based Combat**: Strategic combat with attack, defend, and run options
+- **Tile Events**: 
+  - Enemy tiles → Turn-based combat
+  - Treasure tiles → Coins and items
+  - Shop tiles → Buy equipment (coming soon)
+  - Event tiles → Random effects
+  - Boss tiles → Special encounters (coming soon)
 
-## Getting Started
+### Progression System
+- Health, attack, and defense stats
+- Coin collection and spending
+- Equipment system (planned)
+- Floor progression with increasing difficulty
 
-### Prerequisites
-- Node.js (v16 or higher)
-- npm or yarn
+### Technical Features
+- Built with Phaser 3 and TypeScript
+- Electron desktop app support
+- Local save system using localStorage
+- Responsive design for desktop and mobile
 
-### Installation
+## Installation & Setup
 
-1. Install dependencies:
-```bash
-npm install
-```
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-2. Start the development server:
-```bash
-npm run dev
-```
+2. **Development (Web):**
+   ```bash
+   npm run dev
+   ```
+   Open http://localhost:8080 in your browser
 
-3. Open your browser and navigate to `http://localhost:8080`
+3. **Development (Electron):**
+   ```bash
+   npm run electron-dev
+   ```
 
-### Building for Production
+4. **Build for production:**
+   ```bash
+   npm run build
+   ```
 
-```bash
-npm run build
-```
-
-The built files will be in the `dist` directory.
-
-## How to Play
-
-1. **Start**: Click "New Game" from the main menu
-2. **Movement**: Click "ROLL DICE" to roll 1-6 and move that many spaces
-3. **Tile Events**: Each tile triggers different events:
-   - Fight enemies in turn-based combat
-   - Collect treasure for coins
-   - Visit shops (coming soon)
-   - Experience random events
-   - Face bosses to advance floors
-4. **Combat**: Choose to Attack, Defend, or Run during battles
-5. **Progression**: Gain experience to level up and increase your stats
-
-## Technical Stack
-
-- **Frontend**: Phaser 3 game engine
-- **Language**: TypeScript
-- **Build Tool**: Webpack
-- **Styling**: CSS3
-- **Storage**: localStorage for save data
+5. **Build Electron app:**
+   ```bash
+   npm run dist
+   ```
 
 ## Project Structure
 
 ```
 src/
-├── main.ts              # Game initialization
-├── types/
-│   └── GameTypes.ts     # Type definitions
-├── managers/
-│   └── GameManager.ts   # Core game logic and state
-└── scenes/
-    ├── MenuScene.ts     # Main menu
-    ├── GameScene.ts     # Main gameplay
-    └── CombatScene.ts   # Turn-based combat
+├── scenes/           # Phaser scenes
+│   ├── MenuScene.ts     # Main menu
+│   ├── GameScene.ts     # Main gameplay
+│   └── CombatScene.ts   # Turn-based combat
+├── managers/         # Game logic managers
+│   ├── GameManager.ts   # Core game state
+│   └── BoardManager.ts  # Board generation and rendering
+├── types/           # TypeScript type definitions
+│   └── GameTypes.ts    # Game interfaces and enums
+└── main.ts          # Entry point
 ```
 
-## Future Enhancements
+## Game Controls
 
-- Shop system with equipment and consumables
-- More enemy types and boss varieties
-- Equipment system with weapons and armor
-- Sound effects and background music
-- Particle effects and animations
-- Online leaderboards
-- More random events and tile types
+- **Roll Dice**: Click the "ROLL DICE" button to move
+- **Combat**: Use Attack, Defend, or Run buttons during battles
+- **Navigation**: Click buttons to navigate menus
 
-## Contributing
+## Roadmap
 
-Feel free to submit issues and pull requests to help improve the game!
+### Phase 1 (Current - MVP)
+- [x] Basic board generation and movement
+- [x] Turn-based combat system
+- [x] Basic tile events (enemy, treasure, event)
+- [x] Player stats and progression
+- [x] Local save system
+
+### Phase 2 (Planned)
+- [ ] Shop system with equipment
+- [ ] Inventory management
+- [ ] Boss battles
+- [ ] Multiple floors/stages
+- [ ] Pixel art assets
+- [ ] Sound effects and music
+
+### Phase 3 (Future)
+- [ ] Permanent progression between runs
+- [ ] More enemy types and abilities
+- [ ] Special items and abilities
+- [ ] Online leaderboards
+- [ ] Mobile app version
+
+## Development Notes
+
+The game uses simple colored rectangles as placeholders for pixel art. The core gameplay loop is functional and ready for art assets and additional features.
 
 ## License
 
-MIT License
+MIT License - Feel free to use and modify for your own projects!
