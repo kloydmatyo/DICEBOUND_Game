@@ -1,6 +1,6 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = !app.isPackaged;
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -10,7 +10,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
     },
-    icon: path.join(__dirname, '../assets/icon.png'),
+    // icon: path.join(__dirname, '../assets/icon.png'), // Uncomment when you have an icon
     title: 'Heroll - Roguelike Board Game RPG'
   });
 
