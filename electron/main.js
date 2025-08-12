@@ -1,6 +1,6 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
-const isDev = !app.isPackaged;
+const fs = require('fs');
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -14,11 +14,15 @@ function createWindow() {
     title: 'Heroll - Roguelike Board Game RPG'
   });
 
+  // Check if we're in development mode by looking for the dev server or dist folder
+  const distPath = path.join(__dirname, '../dist/index.html');
+  const isDev = process.env.NODE_ENV === 'development' || !fs.existsSync(distPath);
+
   if (isDev) {
     mainWindow.loadURL('http://localhost:3000');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    mainWindow.loadFile(distPath);
   }
 }
 
