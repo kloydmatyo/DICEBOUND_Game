@@ -1,0 +1,26 @@
+import Phaser from 'phaser';
+import { GameScene } from './scenes/GameScene';
+import { MenuScene } from './scenes/MenuScene';
+import { CombatScene } from './scenes/CombatScene';
+
+const config: Phaser.Types.Core.GameConfig = {
+  type: Phaser.AUTO,
+  width: 1024,
+  height: 768,
+  parent: 'game-container',
+  backgroundColor: '#2c3e50',
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+  },
+  scene: [MenuScene, GameScene, CombatScene],
+  physics: {
+    default: 'arcade',
+    arcade: {
+      gravity: { x: 0, y: 0 },
+      debug: false
+    }
+  }
+};
+
+new Phaser.Game(config);
