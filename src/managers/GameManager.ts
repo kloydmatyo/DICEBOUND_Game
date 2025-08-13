@@ -351,7 +351,7 @@ export class GameManager {
       coins: 100,
     };
 
-    const floorMultiplier = 1 + (floor - 1) * 0.3;
+    const floorMultiplier = 1 + (floor - 1) * 0.2;
 
     return {
       id: `boss_${Date.now()}`,

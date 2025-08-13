@@ -91,6 +91,12 @@ export class CombatScene extends Phaser.Scene {
       fontFamily: 'Courier New, monospace'
     });
 
+    this.uiElements.playerDefense = this.add.text(50, 490, '', {
+      fontSize: '16px',
+      color: '#ffe66d',
+      fontFamily: 'Courier New, monospace'
+    });
+
     // Enemy stats
     this.uiElements.enemyHealth = this.add.text(650, 450, '', {
       fontSize: '16px',
@@ -99,6 +105,12 @@ export class CombatScene extends Phaser.Scene {
     });
 
     this.uiElements.enemyAttack = this.add.text(650, 470, '', {
+      fontSize: '16px',
+      color: '#ffa502',
+      fontFamily: 'Courier New, monospace'
+    });
+
+    this.uiElements.enemyDefense = this.add.text(650, 490, '', {
       fontSize: '16px',
       color: '#ffa502',
       fontFamily: 'Courier New, monospace'
@@ -288,7 +300,9 @@ export class CombatScene extends Phaser.Scene {
   private updateUI() {
     this.uiElements.playerHealth.setText(`HP: ${this.player.health}/${this.player.maxHealth}`);
     this.uiElements.playerAttack.setText(`ATK: ${this.player.attack}`);
+    this.uiElements.playerDefense.setText(`DEF: ${this.player.defense}`);
     this.uiElements.enemyHealth.setText(`HP: ${this.enemy.health}/${this.enemy.maxHealth}`);
     this.uiElements.enemyAttack.setText(`ATK: ${this.enemy.attack}`);
+    this.uiElements.enemyDefense.setText(`DEF: ${this.enemy.defense}`);
   }
 }
