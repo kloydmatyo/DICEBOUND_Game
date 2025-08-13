@@ -173,6 +173,26 @@ export class GameScene extends Phaser.Scene {
     testTurnButton.on("pointerout", () =>
       testTurnButton.setStyle({ color: "#e74c3c" })
     );
+
+    // Test floor advance button - positioned above dice button
+    const testFloorButton = this.add
+      .text(centerX, bottomY - 50, "ADVANCE FLOOR", {
+        fontSize: "16px",
+        color: "#9b59b6",
+        fontFamily: "Courier New, monospace",
+        backgroundColor: "#16213e",
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setInteractive();
+
+    testFloorButton.on("pointerdown", () => this.testAdvanceFloor());
+    testFloorButton.on("pointerover", () =>
+      testFloorButton.setStyle({ color: "#ff6b6b" })
+    );
+    testFloorButton.on("pointerout", () =>
+      testFloorButton.setStyle({ color: "#9b59b6" })
+    );
   }
 
   private rollDice() {
@@ -206,6 +226,7 @@ export class GameScene extends Phaser.Scene {
     let currentStep = 0;
     const startingPosition = this.player.position;
     let floorAdvanced = false;
+    let remainingSteps = 0;
 
     const moveStep = () => {
       if (currentStep < steps) {
@@ -216,6 +237,27 @@ export class GameScene extends Phaser.Scene {
         if (this.player.position === 0 && startingPosition !== 0 && !floorAdvanced) {
           this.advanceFloorDuringMovement();
           floorAdvanced = true;
+          
+          // Check if this is a shop floor - if so, stop at tile 0 and open shop
+          if (this.gameManager.isShopFloor(this.gameState.currentFloor)) {
+            remainingSteps = steps - currentStep - 1; // Save remaining steps
+            this.tweens.add({
+              targets: this.playerSprite,
+              x: tile.x,
+              y: tile.y,
+              duration: 300,
+              ease: "Power2",
+            });
+            
+            // Stop movement and open shop after a brief delay
+            this.time.delayedCall(1000, () => {
+              this.showMessage("A special shop has appeared!", "#f39c12");
+              this.time.delayedCall(2000, () => {
+                this.showShopMenuWithContinuation(remainingSteps);
+              });
+            });
+            return; // Stop movement here
+          }
         }
 
         this.tweens.add({
@@ -290,6 +332,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private showShopMenu() {
+    this.showShopMenuWithContinuation(0);
+  }
+
+  private showShopMenuWithContinuation(remainingSteps: number) {
     const isSpecialShop = this.gameManager.isShopFloor(this.gameState.currentFloor);
     
     // Create shop background
@@ -315,6 +361,21 @@ export class GameScene extends Phaser.Scene {
     ).setOrigin(0.5);
 
     const shopItems: Phaser.GameObjects.GameObject[] = [shopBg, shopTitle];
+
+    // Show remaining steps if any
+    if (remainingSteps > 0) {
+      const stepsText = this.add.text(
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2 - 130,
+        `${remainingSteps} steps remaining after shop`,
+        {
+          fontSize: '16px',
+          color: '#4ecdc4',
+          fontFamily: 'Courier New, monospace'
+        }
+      ).setOrigin(0.5);
+      shopItems.push(stepsText);
+    }
 
     // Regular items
     const antidotePrice = 25;
@@ -375,7 +436,7 @@ export class GameScene extends Phaser.Scene {
     ).setOrigin(0.5).setInteractive();
 
     closeButton.on('pointerdown', () => {
-      this.closeShop(shopItems.concat([closeButton]));
+      this.closeShopWithContinuation(shopItems.concat([closeButton]), remainingSteps);
     });
     closeButton.on('pointerover', () => closeButton.setStyle({ color: '#ff6b6b' }));
     closeButton.on('pointerout', () => closeButton.setStyle({ color: '#ffe66d' }));
@@ -395,7 +456,8 @@ export class GameScene extends Phaser.Scene {
       itemText.setInteractive();
       itemText.on('pointerdown', () => {
         onBuy();
-        this.closeShop([]);
+        // Don't close shop immediately, let player continue shopping
+        this.updateUI(); // Update UI to reflect purchase
       });
       itemText.on('pointerover', () => itemText.setStyle({ color: '#2ecc71' }));
       itemText.on('pointerout', () => itemText.setStyle({ color: '#27ae60' }));
@@ -442,6 +504,49 @@ export class GameScene extends Phaser.Scene {
   private closeShop(elements: Phaser.GameObjects.GameObject[]) {
     elements.forEach(element => element.destroy());
     this.endTurn();
+  }
+
+  private closeShopWithContinuation(elements: Phaser.GameObjects.GameObject[], remainingSteps: number) {
+    elements.forEach(element => element.destroy());
+    
+    if (remainingSteps > 0) {
+      // Continue movement with remaining steps
+      this.showMessage(`Continuing with ${remainingSteps} steps...`, "#4ecdc4");
+      this.time.delayedCall(1500, () => {
+        this.continueMovement(remainingSteps);
+      });
+    } else {
+      // No remaining steps, end turn
+      this.endTurn();
+    }
+  }
+
+  private continueMovement(steps: number) {
+    const boardSize = this.gameState.board.length;
+    let currentStep = 0;
+
+    const moveStep = () => {
+      if (currentStep < steps) {
+        this.player.position = (this.player.position + 1) % boardSize;
+        const tile = this.gameState.board[this.player.position];
+
+        this.tweens.add({
+          targets: this.playerSprite,
+          x: tile.x,
+          y: tile.y,
+          duration: 300,
+          ease: "Power2",
+        });
+
+        currentStep++;
+        this.time.delayedCall(400, moveStep);
+      } else {
+        // Movement complete, handle final tile event
+        this.handleTileEvent();
+      }
+    };
+
+    moveStep();
   }
 
   private handleEventTile() {
@@ -740,6 +845,36 @@ export class GameScene extends Phaser.Scene {
         this.time.delayedCall(2000, () => {
           this.scene.start("MenuScene");
         });
+      });
+    }
+  }
+
+  private testAdvanceFloor() {
+    // Advance floor for testing purposes
+    this.gameManager.advanceFloor(this.gameState);
+    
+    // Show floor advancement message
+    this.showMessage(`TEST: Advanced to Floor ${this.gameState.currentFloor}!`, "#9b59b6");
+    
+    // Regenerate the board visually
+    this.boardManager.createBoard(this.gameState.board);
+    
+    // Reset player position to tile 0
+    this.player.position = 0;
+    const startTile = this.gameState.board[0];
+    this.playerSprite.setPosition(startTile.x, startTile.y);
+    
+    // Update UI
+    this.updateUI();
+    
+    // Check if this is a shop floor and show message
+    if (this.gameManager.isShopFloor(this.gameState.currentFloor)) {
+      this.time.delayedCall(2000, () => {
+        this.showMessage("This is a SHOP FLOOR! Roll dice to test shop behavior.", "#f39c12");
+      });
+    } else if (this.gameManager.isFinalFloor(this.gameState.currentFloor)) {
+      this.time.delayedCall(2000, () => {
+        this.showMessage("FINAL FLOOR! Only bosses remain!", "#ff0000");
       });
     }
   }
