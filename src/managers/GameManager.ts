@@ -219,9 +219,11 @@ export class GameManager {
             player.maxHealth += 5;
             player.health = Math.min(player.maxHealth, player.health + 5);
             effect.applied = true;
-            messages.push(`Blessing applied: +5 to health, attack, and defense!`);
+            messages.push(
+              `Blessing applied: +5 to health, attack, and defense!`
+            );
           }
-          
+
           // Decrement duration for blessing
           if (effect.duration > 0) {
             effect.duration--;
@@ -243,10 +245,10 @@ export class GameManager {
 
     // Remove expired effects (duration 0 or less, but not permanent effects with -1)
     const initialCount = player.statusEffects.length;
-    player.statusEffects = player.statusEffects.filter(effect => 
-      effect.duration === -1 || effect.duration > 0
+    player.statusEffects = player.statusEffects.filter(
+      (effect) => effect.duration === -1 || effect.duration > 0
     );
-    
+
     // Log if any effects were removed
     const removedCount = initialCount - player.statusEffects.length;
     if (removedCount > 0) {
@@ -284,11 +286,16 @@ export class GameManager {
   }
 
   // Update base stats for permanent upgrades
-  updateBaseStats(player: Player, attackBonus: number = 0, defenseBonus: number = 0, healthBonus: number = 0): void {
+  updateBaseStats(
+    player: Player,
+    attackBonus: number = 0,
+    defenseBonus: number = 0,
+    healthBonus: number = 0
+  ): void {
     player.baseStats.attack += attackBonus;
     player.baseStats.defense += defenseBonus;
     player.baseStats.maxHealth += healthBonus;
-    
+
     // Update current stats to match base stats (unless buffed)
     const hasBlessing = this.hasStatusEffect(player, StatusEffectType.BLESSING);
     if (!hasBlessing) {
@@ -301,7 +308,7 @@ export class GameManager {
       player.defense = player.baseStats.defense + 5;
       player.maxHealth = player.baseStats.maxHealth + 5;
     }
-    
+
     // Add health bonus to current health
     if (healthBonus > 0) {
       player.health = Math.min(player.maxHealth, player.health + healthBonus);
