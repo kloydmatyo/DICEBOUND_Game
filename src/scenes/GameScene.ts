@@ -1,5 +1,10 @@
 import Phaser from "phaser";
-import { Player, TileType, GameState, StatusEffectType } from "../types/GameTypes";
+import {
+  Player,
+  TileType,
+  GameState,
+  StatusEffectType,
+} from "../types/GameTypes";
 import { GameManager } from "../managers/GameManager";
 import { BoardManager } from "../managers/BoardManager";
 import { SpriteManager, CharacterType } from "../managers/SpriteManager";
@@ -19,14 +24,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   preload() {
-    console.log('GameScene: Starting preload...');
+    console.log("GameScene: Starting preload...");
     // Load all sprites
     this.spriteManager = new SpriteManager(this);
     this.spriteManager.preloadAll();
-    
+
     // Add completion callback
-    this.load.on('complete', () => {
-      console.log('GameScene: All assets loaded successfully');
+    this.load.on("complete", () => {
+      console.log("GameScene: All assets loaded successfully");
     });
   }
 
@@ -65,9 +70,13 @@ export class GameScene extends Phaser.Scene {
 
   private createPlayer() {
     const currentTile = this.gameState.board[this.player.position];
-    console.log('Creating player sprite at:', currentTile.x, currentTile.y);
-    this.playerSprite = this.spriteManager.createKnight(currentTile.x, currentTile.y, 1);
-    console.log('Player sprite created:', this.playerSprite);
+    console.log("Creating player sprite at:", currentTile.x, currentTile.y);
+    this.playerSprite = this.spriteManager.createKnight(
+      currentTile.x,
+      currentTile.y,
+      1
+    );
+    console.log("Player sprite created:", this.playerSprite);
   }
 
   private createUI() {
@@ -234,10 +243,14 @@ export class GameScene extends Phaser.Scene {
         const tile = this.gameState.board[this.player.position];
 
         // Check if player passed through tile 0 (completed a loop)
-        if (this.player.position === 0 && startingPosition !== 0 && !floorAdvanced) {
+        if (
+          this.player.position === 0 &&
+          startingPosition !== 0 &&
+          !floorAdvanced
+        ) {
           this.advanceFloorDuringMovement();
           floorAdvanced = true;
-          
+
           // Check if this is a shop floor - if so, stop at tile 0 and open shop
           if (this.gameManager.isShopFloor(this.gameState.currentFloor)) {
             remainingSteps = steps - currentStep - 1; // Save remaining steps
@@ -248,7 +261,7 @@ export class GameScene extends Phaser.Scene {
               duration: 300,
               ease: "Power2",
             });
-            
+
             // Stop movement and open shop after a brief delay
             this.time.delayedCall(1000, () => {
               this.showMessage("A special shop has appeared!", "#f39c12");
@@ -336,8 +349,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private showShopMenuWithContinuation(remainingSteps: number) {
-    const isSpecialShop = this.gameManager.isShopFloor(this.gameState.currentFloor);
-    
+    const isSpecialShop = this.gameManager.isShopFloor(
+      this.gameState.currentFloor
+    );
+
     // Create shop background
     const shopBg = this.add.rectangle(
       this.cameras.main.width / 2,
@@ -349,31 +364,35 @@ export class GameScene extends Phaser.Scene {
     shopBg.setStrokeStyle(2, isSpecialShop ? 0xf39c12 : 0x4ecdc4);
 
     // Shop title
-    const shopTitle = this.add.text(
-      this.cameras.main.width / 2,
-      this.cameras.main.height / 2 - 160,
-      isSpecialShop ? 'SPECIAL SHOP' : 'SHOP',
-      {
-        fontSize: '32px',
-        color: isSpecialShop ? '#f39c12' : '#4ecdc4',
-        fontFamily: 'Courier New, monospace'
-      }
-    ).setOrigin(0.5);
+    const shopTitle = this.add
+      .text(
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2 - 160,
+        isSpecialShop ? "SPECIAL SHOP" : "SHOP",
+        {
+          fontSize: "32px",
+          color: isSpecialShop ? "#f39c12" : "#4ecdc4",
+          fontFamily: "Courier New, monospace",
+        }
+      )
+      .setOrigin(0.5);
 
     const shopItems: Phaser.GameObjects.GameObject[] = [shopBg, shopTitle];
 
     // Show remaining steps if any
     if (remainingSteps > 0) {
-      const stepsText = this.add.text(
-        this.cameras.main.width / 2,
-        this.cameras.main.height / 2 - 130,
-        `${remainingSteps} steps remaining after shop`,
-        {
-          fontSize: '16px',
-          color: '#4ecdc4',
-          fontFamily: 'Courier New, monospace'
-        }
-      ).setOrigin(0.5);
+      const stepsText = this.add
+        .text(
+          this.cameras.main.width / 2,
+          this.cameras.main.height / 2 - 130,
+          `${remainingSteps} steps remaining after shop`,
+          {
+            fontSize: "16px",
+            color: "#4ecdc4",
+            fontFamily: "Courier New, monospace",
+          }
+        )
+        .setOrigin(0.5);
       shopItems.push(stepsText);
     }
 
@@ -422,45 +441,63 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Close button
-    const closeButton = this.add.text(
-      this.cameras.main.width / 2,
-      this.cameras.main.height / 2 + 100,
-      'LEAVE SHOP',
-      {
-        fontSize: '18px',
-        color: '#ffe66d',
-        fontFamily: 'Courier New, monospace',
-        backgroundColor: '#16213e',
-        padding: { x: 15, y: 8 }
-      }
-    ).setOrigin(0.5).setInteractive();
+    const closeButton = this.add
+      .text(
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2 + 100,
+        "LEAVE SHOP",
+        {
+          fontSize: "18px",
+          color: "#ffe66d",
+          fontFamily: "Courier New, monospace",
+          backgroundColor: "#16213e",
+          padding: { x: 15, y: 8 },
+        }
+      )
+      .setOrigin(0.5)
+      .setInteractive();
 
-    closeButton.on('pointerdown', () => {
-      this.closeShopWithContinuation(shopItems.concat([closeButton]), remainingSteps);
+    closeButton.on("pointerdown", () => {
+      this.closeShopWithContinuation(
+        shopItems.concat([closeButton]),
+        remainingSteps
+      );
     });
-    closeButton.on('pointerover', () => closeButton.setStyle({ color: '#ff6b6b' }));
-    closeButton.on('pointerout', () => closeButton.setStyle({ color: '#ffe66d' }));
+    closeButton.on("pointerover", () =>
+      closeButton.setStyle({ color: "#ff6b6b" })
+    );
+    closeButton.on("pointerout", () =>
+      closeButton.setStyle({ color: "#ffe66d" })
+    );
 
     shopItems.push(closeButton);
   }
 
-  private createShopItem(x: number, y: number, text: string, price: number, onBuy: () => void): Phaser.GameObjects.Text {
+  private createShopItem(
+    x: number,
+    y: number,
+    text: string,
+    price: number,
+    onBuy: () => void
+  ): Phaser.GameObjects.Text {
     const canAfford = this.player.coins >= price;
-    const itemText = this.add.text(x, y, text, {
-      fontSize: '20px',
-      color: canAfford ? '#27ae60' : '#e74c3c',
-      fontFamily: 'Courier New, monospace'
-    }).setOrigin(0.5);
+    const itemText = this.add
+      .text(x, y, text, {
+        fontSize: "20px",
+        color: canAfford ? "#27ae60" : "#e74c3c",
+        fontFamily: "Courier New, monospace",
+      })
+      .setOrigin(0.5);
 
     if (canAfford) {
       itemText.setInteractive();
-      itemText.on('pointerdown', () => {
+      itemText.on("pointerdown", () => {
         onBuy();
         // Don't close shop immediately, let player continue shopping
         this.updateUI(); // Update UI to reflect purchase
       });
-      itemText.on('pointerover', () => itemText.setStyle({ color: '#2ecc71' }));
-      itemText.on('pointerout', () => itemText.setStyle({ color: '#27ae60' }));
+      itemText.on("pointerover", () => itemText.setStyle({ color: "#2ecc71" }));
+      itemText.on("pointerout", () => itemText.setStyle({ color: "#27ae60" }));
     }
 
     return itemText;
@@ -469,46 +506,60 @@ export class GameScene extends Phaser.Scene {
   private buyStatUpgrade(price: number) {
     this.player.coins -= price;
     this.gameManager.updateBaseStats(this.player, 2, 2, 10);
-    this.showMessage('Stats upgraded! +2 ATK, +2 DEF, +10 Max HP!', '#f39c12');
+    this.showMessage("Stats upgraded! +2 ATK, +2 DEF, +10 Max HP!", "#f39c12");
   }
 
   private buyBlessing(price: number) {
     this.player.coins -= price;
     const blessingEffect = this.gameManager.createBlessingEffect();
     this.gameManager.addStatusEffect(this.player, blessingEffect);
-    this.showMessage('Blessing purchased! +5 to all stats for 3 turns!', '#f39c12');
+    this.showMessage(
+      "Blessing purchased! +5 to all stats for 3 turns!",
+      "#f39c12"
+    );
   }
 
   private buyAntidote(price: number) {
     this.player.coins -= price;
-    
-    if (this.gameManager.hasStatusEffect(this.player, StatusEffectType.POISON)) {
+
+    if (
+      this.gameManager.hasStatusEffect(this.player, StatusEffectType.POISON)
+    ) {
       this.gameManager.removeStatusEffect(this.player, StatusEffectType.POISON);
       const antidoteEffect = this.gameManager.createAntidoteEffect();
       this.gameManager.addStatusEffect(this.player, antidoteEffect);
-      this.showMessage('Poison cured! Antidote provides healing!', '#27ae60');
+      this.showMessage("Poison cured! Antidote provides healing!", "#27ae60");
     } else {
-      this.player.health = Math.min(this.player.maxHealth, this.player.health + 20);
-      this.showMessage('Not poisoned, but gained 20 HP!', '#27ae60');
+      this.player.health = Math.min(
+        this.player.maxHealth,
+        this.player.health + 20
+      );
+      this.showMessage("Not poisoned, but gained 20 HP!", "#27ae60");
     }
   }
 
   private buyHealing(price: number) {
     this.player.coins -= price;
     const oldHealth = this.player.health;
-    this.player.health = Math.min(this.player.maxHealth, this.player.health + 25);
+    this.player.health = Math.min(
+      this.player.maxHealth,
+      this.player.health + 25
+    );
     const healed = this.player.health - oldHealth;
-    this.showMessage(`Healed ${healed} HP!`, '#f39c12');
+    this.showMessage(`Healed ${healed} HP!`, "#f39c12");
   }
 
   private closeShop(elements: Phaser.GameObjects.GameObject[]) {
-    elements.forEach(element => element.destroy());
+    elements.forEach((element) => element.destroy());
     this.endTurn();
   }
 
-  private closeShopWithContinuation(elements: Phaser.GameObjects.GameObject[], remainingSteps: number) {
-    elements.forEach(element => element.destroy());
-    
+  private closeShopWithContinuation(
+    elements: Phaser.GameObjects.GameObject[],
+    remainingSteps: number
+  ) {
+    elements.forEach((element) => element.destroy());
+
     if (remainingSteps > 0) {
       // Continue movement with remaining steps
       this.showMessage(`Continuing with ${remainingSteps} steps...`, "#4ecdc4");
@@ -601,7 +652,12 @@ export class GameScene extends Phaser.Scene {
       {
         text: "Poisonous trap!",
         effect: () => {
-          if (this.gameManager.hasStatusEffect(this.player, StatusEffectType.POISON)) {
+          if (
+            this.gameManager.hasStatusEffect(
+              this.player,
+              StatusEffectType.POISON
+            )
+          ) {
             return "Already poisoned!";
           } else {
             const poisonEffect = this.gameManager.createPoisonEffect();
@@ -614,7 +670,12 @@ export class GameScene extends Phaser.Scene {
       {
         text: "Blessing!",
         effect: () => {
-          if (this.gameManager.hasStatusEffect(this.player, StatusEffectType.BLESSING)) {
+          if (
+            this.gameManager.hasStatusEffect(
+              this.player,
+              StatusEffectType.BLESSING
+            )
+          ) {
             return "Already Blessed!";
           } else {
             const blessingEffect = this.gameManager.createBlessingEffect();
@@ -627,13 +688,24 @@ export class GameScene extends Phaser.Scene {
       {
         text: "Found an antidote!",
         effect: () => {
-          if (this.gameManager.hasStatusEffect(this.player, StatusEffectType.POISON)) {
-            this.gameManager.removeStatusEffect(this.player, StatusEffectType.POISON);
+          if (
+            this.gameManager.hasStatusEffect(
+              this.player,
+              StatusEffectType.POISON
+            )
+          ) {
+            this.gameManager.removeStatusEffect(
+              this.player,
+              StatusEffectType.POISON
+            );
             const antidoteEffect = this.gameManager.createAntidoteEffect();
             this.gameManager.addStatusEffect(this.player, antidoteEffect);
             return "Poison cured! Antidote provides healing!";
           } else {
-            this.player.health = Math.min(this.player.maxHealth, this.player.health + 15);
+            this.player.health = Math.min(
+              this.player.maxHealth,
+              this.player.health + 15
+            );
             return "Not poisoned, but gained 15 HP!";
           }
         },
@@ -642,16 +714,27 @@ export class GameScene extends Phaser.Scene {
       {
         text: "Mysterious herb!",
         effect: () => {
-          if (this.gameManager.hasStatusEffect(this.player, StatusEffectType.POISON)) {
+          if (
+            this.gameManager.hasStatusEffect(
+              this.player,
+              StatusEffectType.POISON
+            )
+          ) {
             // 50% chance to cure poison
             if (Math.random() < 0.5) {
-              this.gameManager.removeStatusEffect(this.player, StatusEffectType.POISON);
+              this.gameManager.removeStatusEffect(
+                this.player,
+                StatusEffectType.POISON
+              );
               return "The herb cured your poison!";
             } else {
               return "The herb had no effect on the poison...";
             }
           } else {
-            this.player.health = Math.min(this.player.maxHealth, this.player.health + 10);
+            this.player.health = Math.min(
+              this.player.maxHealth,
+              this.player.health + 10
+            );
             return "The herb restored 10 HP!";
           }
         },
@@ -686,26 +769,32 @@ export class GameScene extends Phaser.Scene {
   private advanceFloorDuringMovement() {
     // Advance to next floor but don't stop movement
     this.gameManager.advanceFloor(this.gameState);
-    
+
     // Show floor progression message briefly
-    this.showMessage(`Floor ${this.gameState.currentFloor} reached!`, "#4ecdc4");
-    
+    this.showMessage(
+      `Floor ${this.gameState.currentFloor} reached!`,
+      "#4ecdc4"
+    );
+
     // Regenerate the board visually (but don't reset player position)
     this.boardManager.createBoard(this.gameState.board);
-    
+
     // Update UI to show new floor
     this.updateUI();
-    
+
     // Note: Player continues moving, no stopping here
   }
 
   private handleFloorProgression() {
     // Advance to next floor
     this.gameManager.advanceFloor(this.gameState);
-    
+
     // Show floor progression message
-    this.showMessage(`Floor ${this.gameState.currentFloor} reached!`, "#4ecdc4");
-    
+    this.showMessage(
+      `Floor ${this.gameState.currentFloor} reached!`,
+      "#4ecdc4"
+    );
+
     // Check if this is a shop floor
     if (this.gameManager.isShopFloor(this.gameState.currentFloor)) {
       this.time.delayedCall(2000, () => {
@@ -727,14 +816,14 @@ export class GameScene extends Phaser.Scene {
         this.endTurn();
       });
     }
-    
+
     // Regenerate the board visually
     this.boardManager.createBoard(this.gameState.board);
-    
+
     // Update player sprite position
     const startTile = this.gameState.board[0];
     this.playerSprite.setPosition(startTile.x, startTile.y);
-    
+
     this.updateUI();
   }
 
@@ -809,13 +898,13 @@ export class GameScene extends Phaser.Scene {
   private endTurn() {
     // Apply status effects
     const statusMessages = this.gameManager.applyStatusEffects(this.player);
-    
+
     // Show status effect messages if any
     if (statusMessages.length > 0) {
-      const combinedMessage = statusMessages.join('\n');
-      this.showMessage(combinedMessage, '#9b59b6');
+      const combinedMessage = statusMessages.join("\n");
+      this.showMessage(combinedMessage, "#9b59b6");
     }
-    
+
     this.updateUI();
     this.time.delayedCall(2500, () => {
       this.diceButton.setStyle({ color: "#ffe66d" });
@@ -826,20 +915,23 @@ export class GameScene extends Phaser.Scene {
   private simulateTurn() {
     // Apply status effects without moving or triggering events
     const statusMessages = this.gameManager.applyStatusEffects(this.player);
-    
+
     // Show what happened this turn
     let turnMessage = "Turn simulated!";
     if (statusMessages.length > 0) {
-      turnMessage = `Turn simulated!\n${statusMessages.join('\n')}`;
+      turnMessage = `Turn simulated!\n${statusMessages.join("\n")}`;
     } else {
       turnMessage = "Turn simulated!\nNo status effects active.";
     }
-    
+
     this.showMessage(turnMessage, "#e74c3c");
     this.updateUI();
-    
+
     // Check if player died from poison
-    if (this.player.health <= 1 && this.gameManager.hasStatusEffect(this.player, StatusEffectType.POISON)) {
+    if (
+      this.player.health <= 1 &&
+      this.gameManager.hasStatusEffect(this.player, StatusEffectType.POISON)
+    ) {
       this.time.delayedCall(2000, () => {
         this.showMessage("You died from poison!", "#ff0000");
         this.time.delayedCall(2000, () => {
@@ -852,25 +944,31 @@ export class GameScene extends Phaser.Scene {
   private testAdvanceFloor() {
     // Advance floor for testing purposes
     this.gameManager.advanceFloor(this.gameState);
-    
+
     // Show floor advancement message
-    this.showMessage(`TEST: Advanced to Floor ${this.gameState.currentFloor}!`, "#9b59b6");
-    
+    this.showMessage(
+      `TEST: Advanced to Floor ${this.gameState.currentFloor}!`,
+      "#9b59b6"
+    );
+
     // Regenerate the board visually
     this.boardManager.createBoard(this.gameState.board);
-    
+
     // Reset player position to tile 0
     this.player.position = 0;
     const startTile = this.gameState.board[0];
     this.playerSprite.setPosition(startTile.x, startTile.y);
-    
+
     // Update UI
     this.updateUI();
-    
+
     // Check if this is a shop floor and show message
     if (this.gameManager.isShopFloor(this.gameState.currentFloor)) {
       this.time.delayedCall(2000, () => {
-        this.showMessage("This is a SHOP FLOOR! Roll dice to test shop behavior.", "#f39c12");
+        this.showMessage(
+          "This is a SHOP FLOOR! Roll dice to test shop behavior.",
+          "#f39c12"
+        );
       });
     } else if (this.gameManager.isFinalFloor(this.gameState.currentFloor)) {
       this.time.delayedCall(2000, () => {
@@ -887,32 +985,32 @@ export class GameScene extends Phaser.Scene {
     this.uiElements.attack.setText(`Attack: ${this.player.attack}`);
     this.uiElements.defense.setText(`Defense: ${this.player.defense}`);
     this.uiElements.floor.setText(`Floor: ${this.gameState.currentFloor}`);
-    
+
     // Show status effects with duration
-    const statusTexts = this.player.statusEffects.map(effect => {
-      let statusText = '';
+    const statusTexts = this.player.statusEffects.map((effect) => {
+      let statusText = "";
       switch (effect.type) {
         case StatusEffectType.POISON:
-          statusText = '☠️ POISONED';
+          statusText = "☠️ POISONED";
           break;
         case StatusEffectType.REGENERATION:
-          statusText = '💚 HEALING';
+          statusText = "💚 HEALING";
           break;
         case StatusEffectType.BLESSING:
-          statusText = '✨ BLESSED';
+          statusText = "✨ BLESSED";
           break;
         default:
           statusText = effect.type.toUpperCase();
       }
-      
+
       // Add duration if it's not permanent (-1)
       if (effect.duration > 0) {
         statusText += ` (${effect.duration})`;
       }
-      
+
       return statusText;
     });
-    
-    this.uiElements.status.setText(statusTexts.join(' | '));
+
+    this.uiElements.status.setText(statusTexts.join(" | "));
   }
 }

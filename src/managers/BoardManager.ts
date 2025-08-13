@@ -87,6 +87,8 @@ export class BoardManager {
         return "$";
       case TileType.EVENT:
         return "?";
+      case TileType.BOSS:
+        return "B";
       default:
         return "";
     }
