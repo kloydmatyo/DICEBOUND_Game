@@ -1,4 +1,13 @@
-import { Player, GameState, BoardTile, TileType, Enemy, PlayerStats } from '../types/GameTypes';
+import {
+  Player,
+  GameState,
+  BoardTile,
+  TileType,
+  Enemy,
+  PlayerStats,
+  StatusEffect,
+  StatusEffectType,
+} from "../types/GameTypes";
 
 export class GameManager {
   private readonly BOARD_SIZE = 20;
@@ -6,20 +15,20 @@ export class GameManager {
   initializeGame(): GameState {
     const player = this.createPlayer();
     const board = this.generateBoard();
-    
+
     return {
       player,
       currentFloor: 1,
       board,
       isPlayerTurn: true,
-      diceValue: 0
+      diceValue: 0,
     };
   }
 
   private createPlayer(): Player {
     return {
-      id: 'player1',
-      name: 'Knight',
+      id: "player1",
+      name: "Knight",
       level: 1,
       health: 100,
       maxHealth: 100,
@@ -33,8 +42,9 @@ export class GameManager {
         gamesPlayed: 0,
         enemiesDefeated: 0,
         coinsEarned: 0,
-        floorsCompleted: 0
-      }
+        floorsCompleted: 0,
+      },
+      statusEffects: [],
     };
   }
 
@@ -74,7 +84,7 @@ export class GameManager {
         id: i,
         type: tileType,
         x: Math.round(x),
-        y: Math.round(y)
+        y: Math.round(y),
       });
     }
 
@@ -83,10 +93,34 @@ export class GameManager {
 
   generateEnemy(floor: number): Enemy {
     const enemies = [
-      { name: 'Goblin', baseHealth: 30, baseAttack: 8, baseDefense: 2, coins: 15 },
-      { name: 'Orc', baseHealth: 50, baseAttack: 12, baseDefense: 4, coins: 25 },
-      { name: 'Skeleton', baseHealth: 40, baseAttack: 10, baseDefense: 3, coins: 20 },
-      { name: 'Troll', baseHealth: 80, baseAttack: 15, baseDefense: 6, coins: 40 }
+      {
+        name: "Goblin",
+        baseHealth: 30,
+        baseAttack: 8,
+        baseDefense: 2,
+        coins: 15,
+      },
+      {
+        name: "Orc",
+        baseHealth: 50,
+        baseAttack: 12,
+        baseDefense: 4,
+        coins: 25,
+      },
+      {
+        name: "Skeleton",
+        baseHealth: 40,
+        baseAttack: 10,
+        baseDefense: 3,
+        coins: 20,
+      },
+      {
+        name: "Troll",
+        baseHealth: 80,
+        baseAttack: 15,
+        baseDefense: 6,
+        coins: 40,
+      },
     ];
 
     const template = enemies[Math.floor(Math.random() * enemies.length)];
@@ -99,25 +133,85 @@ export class GameManager {
       maxHealth: Math.round(template.baseHealth * floorMultiplier),
       attack: Math.round(template.baseAttack * floorMultiplier),
       defense: Math.round(template.baseDefense * floorMultiplier),
-      coins: Math.round(template.coins * floorMultiplier)
+      coins: Math.round(template.coins * floorMultiplier),
     };
   }
 
   saveGame(gameState: GameState): void {
     try {
-      localStorage.setItem('knights_gambit_save', JSON.stringify(gameState));
+      localStorage.setItem("knights_gambit_save", JSON.stringify(gameState));
     } catch (error) {
-      console.error('Failed to save game:', error);
+      console.error("Failed to save game:", error);
     }
   }
 
   loadGame(): GameState | null {
     try {
-      const saveData = localStorage.getItem('knights_gambit_save');
+      const saveData = localStorage.getItem("knights_gambit_save");
       return saveData ? JSON.parse(saveData) : null;
     } catch (error) {
-      console.error('Failed to load game:', error);
+      console.error("Failed to load game:", error);
       return null;
     }
+  }
+
+  // Status effect management
+  addStatusEffect(player: Player, effect: StatusEffect): void {
+    // Remove existing effect of same type
+    player.statusEffects = player.statusEffects.filter(e => e.type !== effect.type);
+    // Add new effect
+    player.statusEffects.push(effect);
+  }
+
+  removeStatusEffect(player: Player, effectType: StatusEffectType): void {
+    player.statusEffects = player.statusEffects.filter(e => e.type !== effectType);
+  }
+
+  hasStatusEffect(player: Player, effectType: StatusEffectType): boolean {
+    return player.statusEffects.some(e => e.type === effectType);
+  }
+
+  applyStatusEffects(player: Player): string[] {
+    const messages: string[] = [];
+    
+    player.statusEffects.forEach(effect => {
+      switch (effect.type) {
+        case StatusEffectType.POISON:
+          if (effect.damage) {
+            player.health = Math.max(1, player.health - effect.damage);
+            messages.push(`Poison deals ${effect.damage} damage!`);
+          }
+          break;
+        case StatusEffectType.REGENERATION:
+          if (effect.damage) {
+            const healed = Math.min(effect.damage, player.maxHealth - player.health);
+            player.health += healed;
+            if (healed > 0) {
+              messages.push(`Regeneration heals ${healed} HP!`);
+            }
+          }
+          break;
+      }
+    });
+
+    return messages;
+  }
+
+  createPoisonEffect(): StatusEffect {
+    return {
+      type: StatusEffectType.POISON,
+      duration: -1, // Permanent until cured
+      damage: 3, // 3 damage per turn
+      description: 'Poisoned - loses 3 HP each turn until cured'
+    };
+  }
+
+  createAntidoteEffect(): StatusEffect {
+    return {
+      type: StatusEffectType.REGENERATION,
+      duration: 3, // 3 turns of healing
+      damage: 5, // 5 healing per turn
+      description: 'Antidote effect - heals 5 HP per turn for 3 turns'
+    };
   }
 }

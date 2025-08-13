@@ -9,10 +9,11 @@ Travel around a looping circular board as a knight, rolling dice to move forward
 ## Features
 
 ### Core Gameplay
+
 - **Circular Board**: 20-tile looping board with different tile types
 - **Dice Rolling**: Roll 1-6 to move around the board
 - **Turn-Based Combat**: Strategic combat with attack, defend, and run options
-- **Tile Events**: 
+- **Tile Events**:
   - Enemy tiles → Turn-based combat
   - Treasure tiles → Coins and items
   - Shop tiles → Buy equipment (coming soon)
@@ -20,12 +21,14 @@ Travel around a looping circular board as a knight, rolling dice to move forward
   - Boss tiles → Special encounters (coming soon)
 
 ### Progression System
+
 - Health, attack, and defense stats
 - Coin collection and spending
 - Equipment system (planned)
 - Floor progression with increasing difficulty
 
 ### Technical Features
+
 - Built with Phaser 3 and TypeScript
 - Electron desktop app support
 - Local save system using localStorage
@@ -34,22 +37,27 @@ Travel around a looping circular board as a knight, rolling dice to move forward
 ## Installation & Setup
 
 1. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 2. **Development (Web):**
+
    ```bash
    npm run dev
    ```
+
    Open http://localhost:3000 in your browser
 
 3. **Development (Electron):**
+
    ```bash
    npm run electron-dev
    ```
 
 4. **Build for production:**
+
    ```bash
    npm run build
    ```
@@ -84,6 +92,7 @@ src/
 ## Roadmap
 
 ### Phase 1 (Current - MVP)
+
 - [x] Basic board generation and movement
 - [x] Turn-based combat system
 - [x] Basic tile events (enemy, treasure, event)
@@ -91,6 +100,7 @@ src/
 - [x] Local save system
 
 ### Phase 2 (Planned)
+
 - [ ] Shop system with equipment
 - [ ] Inventory management
 - [ ] Boss battles
@@ -99,6 +109,7 @@ src/
 - [ ] Sound effects and music
 
 ### Phase 3 (Future)
+
 - [ ] Permanent progression between runs
 - [ ] More enemy types and abilities
 - [ ] Special items and abilities

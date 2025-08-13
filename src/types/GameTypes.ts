@@ -11,6 +11,14 @@ export interface Player {
   equipment: Equipment;
   inventory: Item[];
   stats: PlayerStats;
+  statusEffects: StatusEffect[];
+}
+
+export interface StatusEffect {
+  type: StatusEffectType;
+  duration: number; // -1 for permanent until cured
+  damage?: number; // damage per turn for poison
+  description: string;
 }
 
 export interface Equipment {
@@ -51,20 +59,27 @@ export interface PlayerStats {
 }
 
 export enum TileType {
-  EMPTY = 'empty',
-  ENEMY = 'enemy',
-  TREASURE = 'treasure',
-  SHOP = 'shop',
-  EVENT = 'event',
-  BOSS = 'boss',
-  START = 'start'
+  EMPTY = "empty",
+  ENEMY = "enemy",
+  TREASURE = "treasure",
+  SHOP = "shop",
+  EVENT = "event",
+  BOSS = "boss",
+  START = "start",
 }
 
 export enum ItemType {
-  WEAPON = 'weapon',
-  ARMOR = 'armor',
-  ACCESSORY = 'accessory',
-  CONSUMABLE = 'consumable'
+  WEAPON = "weapon",
+  ARMOR = "armor",
+  ACCESSORY = "accessory",
+  CONSUMABLE = "consumable",
+}
+
+export enum StatusEffectType {
+  POISON = "poison",
+  REGENERATION = "regeneration",
+  STRENGTH_BOOST = "strength_boost",
+  DEFENSE_BOOST = "defense_boost",
 }
 
 export interface BoardTile {

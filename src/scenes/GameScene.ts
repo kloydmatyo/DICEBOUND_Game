@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { Player, TileType, GameState } from "../types/GameTypes";
+import { Player, TileType, GameState, StatusEffectType } from "../types/GameTypes";
 import { GameManager } from "../managers/GameManager";
 import { BoardManager } from "../managers/BoardManager";
 import { SpriteManager, CharacterType } from "../managers/SpriteManager";
@@ -80,15 +80,27 @@ export class GameScene extends Phaser.Scene {
       fontFamily: "Courier New, monospace",
     });
 
-    this.uiElements.attack = this.add.text(padding, padding + 60, "", {
+    this.uiElements.defense = this.add.text(padding, padding + 60, "", {
+      fontSize: "18px",
+      color: "#4ecdc4",
+      fontFamily: "Courier New, monospace",
+    });
+
+    this.uiElements.attack = this.add.text(padding, padding + 90, "", {
       fontSize: "18px",
       color: "#ff9f43",
       fontFamily: "Courier New, monospace",
     });
 
-    this.uiElements.floor = this.add.text(padding, padding + 90, "", {
+    this.uiElements.floor = this.add.text(padding, padding + 120, "", {
       fontSize: "18px",
       color: "#4ecdc4",
+      fontFamily: "Courier New, monospace",
+    });
+
+    this.uiElements.status = this.add.text(padding, padding + 150, "", {
+      fontSize: "16px",
+      color: "#e74c3c",
       fontFamily: "Courier New, monospace",
     });
 
@@ -232,7 +244,123 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleShopTile() {
-    this.showMessage("Shop coming soon!", "#4ecdc4");
+    this.showShopMenu();
+  }
+
+  private showShopMenu() {
+    // Create shop background
+    const shopBg = this.add.rectangle(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 2,
+      400,
+      300,
+      0x16213e
+    );
+    shopBg.setStrokeStyle(2, 0x4ecdc4);
+
+    // Shop title
+    const shopTitle = this.add.text(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 2 - 120,
+      'SHOP',
+      {
+        fontSize: '32px',
+        color: '#4ecdc4',
+        fontFamily: 'Courier New, monospace'
+      }
+    ).setOrigin(0.5);
+
+    // Antidote option
+    const antidotePrice = 25;
+    const antidoteText = this.add.text(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 2 - 60,
+      `Antidote - ${antidotePrice} coins`,
+      {
+        fontSize: '20px',
+        color: this.player.coins >= antidotePrice ? '#27ae60' : '#e74c3c',
+        fontFamily: 'Courier New, monospace'
+      }
+    ).setOrigin(0.5);
+
+    if (this.player.coins >= antidotePrice) {
+      antidoteText.setInteractive();
+      antidoteText.on('pointerdown', () => {
+        this.buyAntidote(antidotePrice);
+        this.closeShop([shopBg, shopTitle, antidoteText, healingText, closeButton]);
+      });
+      antidoteText.on('pointerover', () => antidoteText.setStyle({ color: '#2ecc71' }));
+      antidoteText.on('pointerout', () => antidoteText.setStyle({ color: '#27ae60' }));
+    }
+
+    // Healing potion option
+    const healingPrice = 15;
+    const healingText = this.add.text(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 2 - 20,
+      `Healing Potion - ${healingPrice} coins`,
+      {
+        fontSize: '20px',
+        color: this.player.coins >= healingPrice ? '#f39c12' : '#e74c3c',
+        fontFamily: 'Courier New, monospace'
+      }
+    ).setOrigin(0.5);
+
+    if (this.player.coins >= healingPrice) {
+      healingText.setInteractive();
+      healingText.on('pointerdown', () => {
+        this.buyHealing(healingPrice);
+        this.closeShop([shopBg, shopTitle, antidoteText, healingText, closeButton]);
+      });
+      healingText.on('pointerover', () => healingText.setStyle({ color: '#e67e22' }));
+      healingText.on('pointerout', () => healingText.setStyle({ color: '#f39c12' }));
+    }
+
+    // Close button
+    const closeButton = this.add.text(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 2 + 60,
+      'LEAVE SHOP',
+      {
+        fontSize: '18px',
+        color: '#ffe66d',
+        fontFamily: 'Courier New, monospace',
+        backgroundColor: '#16213e',
+        padding: { x: 15, y: 8 }
+      }
+    ).setOrigin(0.5).setInteractive();
+
+    closeButton.on('pointerdown', () => {
+      this.closeShop([shopBg, shopTitle, antidoteText, healingText, closeButton]);
+    });
+    closeButton.on('pointerover', () => closeButton.setStyle({ color: '#ff6b6b' }));
+    closeButton.on('pointerout', () => closeButton.setStyle({ color: '#ffe66d' }));
+  }
+
+  private buyAntidote(price: number) {
+    this.player.coins -= price;
+    
+    if (this.gameManager.hasStatusEffect(this.player, StatusEffectType.POISON)) {
+      this.gameManager.removeStatusEffect(this.player, StatusEffectType.POISON);
+      const antidoteEffect = this.gameManager.createAntidoteEffect();
+      this.gameManager.addStatusEffect(this.player, antidoteEffect);
+      this.showMessage('Poison cured! Antidote provides healing!', '#27ae60');
+    } else {
+      this.player.health = Math.min(this.player.maxHealth, this.player.health + 20);
+      this.showMessage('Not poisoned, but gained 20 HP!', '#27ae60');
+    }
+  }
+
+  private buyHealing(price: number) {
+    this.player.coins -= price;
+    const oldHealth = this.player.health;
+    this.player.health = Math.min(this.player.maxHealth, this.player.health + 25);
+    const healed = this.player.health - oldHealth;
+    this.showMessage(`Healed ${healed} HP!`, '#f39c12');
+  }
+
+  private closeShop(elements: Phaser.GameObjects.GameObject[]) {
+    elements.forEach(element => element.destroy());
     this.endTurn();
   }
 
@@ -256,8 +384,8 @@ export class GameScene extends Phaser.Scene {
       {
         text: "Cursed by a witch!",
         effect: () => {
-          this.player.health = Math.max(1, this.player.health - 5);
-          return "Lost 5 health!";
+          this.player.health = Math.max(1, this.player.health - 10);
+          return "Lost 10 health!";
         },
         color: "#e74c3c",
       },
@@ -276,6 +404,52 @@ export class GameScene extends Phaser.Scene {
           return "Attack increased by 3!";
         },
         color: "#ff9f43",
+      },
+      {
+        text: "Poisonous trap!",
+        effect: () => {
+          if (this.gameManager.hasStatusEffect(this.player, StatusEffectType.POISON)) {
+            return "Already poisoned!";
+          } else {
+            const poisonEffect = this.gameManager.createPoisonEffect();
+            this.gameManager.addStatusEffect(this.player, poisonEffect);
+            return "You've been poisoned! Find an antidote!";
+          }
+        },
+        color: "#8e44ad",
+      },
+      {
+        text: "Found an antidote!",
+        effect: () => {
+          if (this.gameManager.hasStatusEffect(this.player, StatusEffectType.POISON)) {
+            this.gameManager.removeStatusEffect(this.player, StatusEffectType.POISON);
+            const antidoteEffect = this.gameManager.createAntidoteEffect();
+            this.gameManager.addStatusEffect(this.player, antidoteEffect);
+            return "Poison cured! Antidote provides healing!";
+          } else {
+            this.player.health = Math.min(this.player.maxHealth, this.player.health + 15);
+            return "Not poisoned, but gained 15 HP!";
+          }
+        },
+        color: "#27ae60",
+      },
+      {
+        text: "Mysterious herb!",
+        effect: () => {
+          if (this.gameManager.hasStatusEffect(this.player, StatusEffectType.POISON)) {
+            // 50% chance to cure poison
+            if (Math.random() < 0.5) {
+              this.gameManager.removeStatusEffect(this.player, StatusEffectType.POISON);
+              return "The herb cured your poison!";
+            } else {
+              return "The herb had no effect on the poison...";
+            }
+          } else {
+            this.player.health = Math.min(this.player.maxHealth, this.player.health + 10);
+            return "The herb restored 10 HP!";
+          }
+        },
+        color: "#16a085",
       },
     ];
 
@@ -359,6 +533,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   private endTurn() {
+    // Apply status effects
+    const statusMessages = this.gameManager.applyStatusEffects(this.player);
+    
+    // Show status effect messages if any
+    if (statusMessages.length > 0) {
+      const combinedMessage = statusMessages.join('\n');
+      this.showMessage(combinedMessage, '#9b59b6');
+    }
+    
     this.updateUI();
     this.time.delayedCall(2500, () => {
       this.diceButton.setStyle({ color: "#ffe66d" });
@@ -372,6 +555,21 @@ export class GameScene extends Phaser.Scene {
     );
     this.uiElements.coins.setText(`Coins: ${this.player.coins}`);
     this.uiElements.attack.setText(`Attack: ${this.player.attack}`);
+    this.uiElements.defense.setText(`Defense: ${this.player.defense}`);
     this.uiElements.floor.setText(`Floor: ${this.gameState.currentFloor}`);
+    
+    // Show status effects
+    const statusTexts = this.player.statusEffects.map(effect => {
+      switch (effect.type) {
+        case StatusEffectType.POISON:
+          return '☠️ POISONED';
+        case StatusEffectType.REGENERATION:
+          return '💚 HEALING';
+        default:
+          return effect.type.toUpperCase();
+      }
+    });
+    
+    this.uiElements.status.setText(statusTexts.join(' | '));
   }
 }
