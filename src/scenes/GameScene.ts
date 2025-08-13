@@ -205,11 +205,18 @@ export class GameScene extends Phaser.Scene {
     const boardSize = this.gameState.board.length;
     let currentStep = 0;
     const startingPosition = this.player.position;
+    let floorAdvanced = false;
 
     const moveStep = () => {
       if (currentStep < steps) {
         this.player.position = (this.player.position + 1) % boardSize;
         const tile = this.gameState.board[this.player.position];
+
+        // Check if player passed through tile 0 (completed a loop)
+        if (this.player.position === 0 && startingPosition !== 0 && !floorAdvanced) {
+          this.advanceFloorDuringMovement();
+          floorAdvanced = true;
+        }
 
         this.tweens.add({
           targets: this.playerSprite,
@@ -222,12 +229,8 @@ export class GameScene extends Phaser.Scene {
         currentStep++;
         this.time.delayedCall(400, moveStep);
       } else {
-        // Check if player completed a loop (returned to tile 0 from a different position)
-        if (this.player.position === 0 && startingPosition !== 0) {
-          this.handleFloorProgression();
-        } else {
-          this.handleTileEvent();
-        }
+        // Movement complete, handle final tile event
+        this.handleTileEvent();
       }
     };
 
@@ -573,6 +576,22 @@ export class GameScene extends Phaser.Scene {
         gameState: this.gameState,
       });
     }
+  }
+
+  private advanceFloorDuringMovement() {
+    // Advance to next floor but don't stop movement
+    this.gameManager.advanceFloor(this.gameState);
+    
+    // Show floor progression message briefly
+    this.showMessage(`Floor ${this.gameState.currentFloor} reached!`, "#4ecdc4");
+    
+    // Regenerate the board visually (but don't reset player position)
+    this.boardManager.createBoard(this.gameState.board);
+    
+    // Update UI to show new floor
+    this.updateUI();
+    
+    // Note: Player continues moving, no stopping here
   }
 
   private handleFloorProgression() {

@@ -1,5 +1,5 @@
-import Phaser from 'phaser';
-import { BoardTile, TileType } from '../types/GameTypes';
+import Phaser from "phaser";
+import { BoardTile, TileType } from "../types/GameTypes";
 
 export class BoardManager {
   private scene: Phaser.Scene;
@@ -17,11 +17,13 @@ export class BoardManager {
       this.tileSprites.push(tileSprite);
 
       // Add tile number
-      this.scene.add.text(tile.x, tile.y - 25, index.toString(), {
-        fontSize: '12px',
-        color: '#ffffff',
-        fontFamily: 'Courier New, monospace'
-      }).setOrigin(0.5);
+      this.scene.add
+        .text(tile.x, tile.y - 25, index.toString(), {
+          fontSize: "12px",
+          color: "#ffffff",
+          fontFamily: "Courier New, monospace",
+        })
+        .setOrigin(0.5);
     });
 
     // Draw connecting lines between tiles
@@ -31,17 +33,25 @@ export class BoardManager {
   private createTileSprite(tile: BoardTile): Phaser.GameObjects.Rectangle {
     const color = this.getTileColor(tile.type);
     const size = 30;
-    
+
     // Create a colored rectangle as tile sprite
-    const tileSprite = this.scene.add.rectangle(tile.x, tile.y, size, size, color);
-    
+    const tileSprite = this.scene.add.rectangle(
+      tile.x,
+      tile.y,
+      size,
+      size,
+      color
+    );
+
     // Add tile type indicator
     const symbol = this.getTileSymbol(tile.type);
-    this.scene.add.text(tile.x, tile.y, symbol, {
-      fontSize: '16px',
-      color: '#ffffff',
-      fontFamily: 'Courier New, monospace'
-    }).setOrigin(0.5);
+    this.scene.add
+      .text(tile.x, tile.y, symbol, {
+        fontSize: "16px",
+        color: "#ffffff",
+        fontFamily: "Courier New, monospace",
+      })
+      .setOrigin(0.5);
 
     return tileSprite;
   }
@@ -68,19 +78,17 @@ export class BoardManager {
   private getTileSymbol(type: TileType): string {
     switch (type) {
       case TileType.START:
-        return 'S';
+        return "S";
       case TileType.ENEMY:
-        return 'E';
+        return "E";
       case TileType.TREASURE:
-        return 'T';
+        return "T";
       case TileType.SHOP:
-        return '$';
+        return "$";
       case TileType.EVENT:
-        return '?';
-      case TileType.BOSS:
-        return 'B';
+        return "?";
       default:
-        return '';
+        return "";
     }
   }
 
@@ -91,7 +99,7 @@ export class BoardManager {
     for (let i = 0; i < tiles.length; i++) {
       const currentTile = tiles[i];
       const nextTile = tiles[(i + 1) % tiles.length];
-      
+
       graphics.moveTo(currentTile.x, currentTile.y);
       graphics.lineTo(nextTile.x, nextTile.y);
     }
@@ -100,7 +108,7 @@ export class BoardManager {
   }
 
   private clearBoard(): void {
-    this.tileSprites.forEach(sprite => sprite.destroy());
+    this.tileSprites.forEach((sprite) => sprite.destroy());
     this.tileSprites = [];
   }
 }
