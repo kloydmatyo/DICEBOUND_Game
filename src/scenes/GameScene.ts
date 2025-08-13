@@ -431,6 +431,14 @@ export class GameScene extends Phaser.Scene {
         color: "#ff9f43",
       },
       {
+        text: "Found an Armor!",
+        effect: () => {
+          this.gameManager.updateBaseStats(this.player, 0, 3, 0);
+          return "Defense increased by 3!";
+        },
+        color: "#ff9f43",
+      },
+      {
         text: "Poisonous trap!",
         effect: () => {
           if (this.gameManager.hasStatusEffect(this.player, StatusEffectType.POISON)) {
