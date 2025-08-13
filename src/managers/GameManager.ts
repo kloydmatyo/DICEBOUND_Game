@@ -178,6 +178,7 @@ export class GameManager {
   applyStatusEffects(player: Player): string[] {
     const messages: string[] = [];
 
+    // Apply effects and decrement duration
     player.statusEffects.forEach((effect) => {
       switch (effect.type) {
         case StatusEffectType.POISON:
@@ -197,6 +198,13 @@ export class GameManager {
               messages.push(`Regeneration heals ${healed} HP!`);
             }
           }
+          // Decrement duration for regeneration
+          if (effect.duration > 0) {
+            effect.duration--;
+            if (effect.duration === 0) {
+              messages.push(`Regeneration effect ended.`);
+            }
+          }
           break;
         case StatusEffectType.BLESSING:
           // Buff stats by +5 each turn while blessing is active
@@ -204,9 +212,29 @@ export class GameManager {
           player.defense += 5;
           player.health = Math.min(player.maxHealth, player.health + 5);
           messages.push(`Blessing: +5 to health, attack, and defense!`);
+          
+          // Decrement duration for blessing
+          if (effect.duration > 0) {
+            effect.duration--;
+            if (effect.duration === 0) {
+              messages.push(`Blessing effect ended.`);
+            }
+          }
           break;
       }
     });
+
+    // Remove expired effects (duration 0 or less, but not permanent effects with -1)
+    const initialCount = player.statusEffects.length;
+    player.statusEffects = player.statusEffects.filter(effect => 
+      effect.duration === -1 || effect.duration > 0
+    );
+    
+    // Log if any effects were removed
+    const removedCount = initialCount - player.statusEffects.length;
+    if (removedCount > 0) {
+      console.log(`Removed ${removedCount} expired status effects`);
+    }
 
     return messages;
   }

@@ -622,16 +622,29 @@ export class GameScene extends Phaser.Scene {
     this.uiElements.defense.setText(`Defense: ${this.player.defense}`);
     this.uiElements.floor.setText(`Floor: ${this.gameState.currentFloor}`);
     
-    // Show status effects
+    // Show status effects with duration
     const statusTexts = this.player.statusEffects.map(effect => {
+      let statusText = '';
       switch (effect.type) {
         case StatusEffectType.POISON:
-          return '☠️ POISONED';
+          statusText = '☠️ POISONED';
+          break;
         case StatusEffectType.REGENERATION:
-          return '💚 HEALING';
+          statusText = '💚 HEALING';
+          break;
+        case StatusEffectType.BLESSING:
+          statusText = '✨ BLESSED';
+          break;
         default:
-          return effect.type.toUpperCase();
+          statusText = effect.type.toUpperCase();
       }
+      
+      // Add duration if it's not permanent (-1)
+      if (effect.duration > 0) {
+        statusText += ` (${effect.duration})`;
+      }
+      
+      return statusText;
     });
     
     this.uiElements.status.setText(statusTexts.join(' | '));
