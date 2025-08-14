@@ -143,6 +143,26 @@ export class GameScene extends Phaser.Scene {
       this.diceButton.setStyle({ color: "#ffe66d" })
     );
 
+    // Test shop button - positioned to the far left
+    const testShopButton = this.add
+      .text(centerX - 250, bottomY, "TEST SHOP", {
+        fontSize: "18px",
+        color: "#f39c12",
+        fontFamily: "Courier New, monospace",
+        backgroundColor: "#16213e",
+        padding: { x: 15, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setInteractive();
+
+    testShopButton.on("pointerdown", () => this.testShop());
+    testShopButton.on("pointerover", () =>
+      testShopButton.setStyle({ color: "#ff6b6b" })
+    );
+    testShopButton.on("pointerout", () =>
+      testShopButton.setStyle({ color: "#f39c12" })
+    );
+
     // Test event button - positioned to the left of dice button
     const testButton = this.add
       .text(centerX - 150, bottomY, "TEST EVENT", {
@@ -1015,6 +1035,137 @@ export class GameScene extends Phaser.Scene {
         this.showMessage("FINAL FLOOR! Only bosses remain!", "#ff0000");
       });
     }
+  }
+
+  private testShop() {
+    // Test shop functionality - opens special shop with all items
+    this.showMessage("TEST: Opening SPECIAL shop menu with all items!", "#f39c12");
+
+    // Delay to show the message, then open special shop
+    this.time.delayedCall(1500, () => {
+      this.showTestShopMenu();
+    });
+  }
+
+  private showTestShopMenu() {
+    // Force special shop for testing - shows ALL items
+    const isSpecialShop = true; // Force special shop for testing
+    
+    // Create shop background
+    const shopBg = this.add.rectangle(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 2,
+      500,
+      450, // Slightly taller for more items
+      0x16213e
+    );
+    shopBg.setStrokeStyle(2, 0xf39c12); // Orange border for test shop
+
+    // Shop title
+    const shopTitle = this.add
+      .text(
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2 - 180,
+        "TEST SPECIAL SHOP",
+        {
+          fontSize: "32px",
+          color: "#f39c12",
+          fontFamily: "Courier New, monospace",
+        }
+      )
+      .setOrigin(0.5);
+
+    const shopItems: Phaser.GameObjects.GameObject[] = [shopBg, shopTitle];
+
+    // Test shop info
+    const infoText = this.add.text(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 2 - 150,
+      "All items available for testing",
+      {
+        fontSize: "16px",
+        color: "#4ecdc4",
+        fontFamily: "Courier New, monospace",
+      }
+    ).setOrigin(0.5);
+    shopItems.push(infoText);
+
+    // Regular items
+    const antidotePrice = 25;
+    const antidoteText = this.createShopItem(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 2 - 110,
+      `Antidote - ${antidotePrice} coins`,
+      antidotePrice,
+      () => this.buyAntidote(antidotePrice)
+    );
+    shopItems.push(antidoteText);
+
+    const healingPrice = 15;
+    const healingText = this.createShopItem(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 2 - 70,
+      `Healing Potion - ${healingPrice} coins`,
+      healingPrice,
+      () => this.buyHealing(healingPrice)
+    );
+    shopItems.push(healingText);
+
+    // Special shop items (always show in test shop)
+    const upgradePrice = 50;
+    const upgradeText = this.createShopItem(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 2 - 30,
+      `Stat Upgrade - ${upgradePrice} coins`,
+      upgradePrice,
+      () => this.buyStatUpgrade(upgradePrice)
+    );
+    shopItems.push(upgradeText);
+
+    const blessingPrice = 75;
+    const blessingText = this.createShopItem(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 2 + 10,
+      `Blessing Scroll - ${blessingPrice} coins`,
+      blessingPrice,
+      () => this.buyBlessing(blessingPrice)
+    );
+    shopItems.push(blessingText);
+
+    // Close button
+    const closeButton = this.add
+      .text(
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2 + 120,
+        "CLOSE TEST SHOP",
+        {
+          fontSize: "18px",
+          color: "#ffe66d",
+          fontFamily: "Courier New, monospace",
+          backgroundColor: "#16213e",
+          padding: { x: 15, y: 8 },
+        }
+      )
+      .setOrigin(0.5)
+      .setInteractive();
+
+    closeButton.on("pointerdown", () => {
+      this.closeTestShop(shopItems.concat([closeButton]));
+    });
+    closeButton.on("pointerover", () =>
+      closeButton.setStyle({ color: "#ff6b6b" })
+    );
+    closeButton.on("pointerout", () =>
+      closeButton.setStyle({ color: "#ffe66d" })
+    );
+
+    shopItems.push(closeButton);
+  }
+
+  private closeTestShop(elements: Phaser.GameObjects.GameObject[]) {
+    elements.forEach((element) => element.destroy());
+    this.showMessage("Test shop closed!", "#f39c12");
+    // Don't end turn, just close shop
   }
 
   private updateUI() {
