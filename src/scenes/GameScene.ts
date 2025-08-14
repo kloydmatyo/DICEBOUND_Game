@@ -503,51 +503,67 @@ export class GameScene extends Phaser.Scene {
     return itemText;
   }
 
+
   private buyStatUpgrade(price: number) {
     this.player.coins -= price;
+    if(this.player.coins >= price){
     this.gameManager.updateBaseStats(this.player, 2, 2, 10);
     this.showMessage("Stats upgraded! +2 ATK, +2 DEF, +10 Max HP!", "#f39c12");
+    } else {
+      this.showMessage("You don't have enough coins!", "#f39c12");
+    }
   }
 
   private buyBlessing(price: number) {
     this.player.coins -= price;
+    if (this.player.coins >= price){
     const blessingEffect = this.gameManager.createBlessingEffect();
     this.gameManager.addStatusEffect(this.player, blessingEffect);
     this.showMessage(
       "Blessing purchased! +5 to all stats for 3 turns!",
       "#f39c12"
     );
+  } else {
+    this.showMessage("You don't have enough coins!", "#f39c12");
+    }
   }
 
   private buyAntidote(price: number) {
     this.player.coins -= price;
-
-    if (
-      this.gameManager.hasStatusEffect(this.player, StatusEffectType.POISON)
-    ) {
-      this.gameManager.removeStatusEffect(this.player, StatusEffectType.POISON);
-      const antidoteEffect = this.gameManager.createAntidoteEffect();
-      this.gameManager.addStatusEffect(this.player, antidoteEffect);
-      this.showMessage("Poison cured! Antidote provides healing!", "#27ae60");
-    } else {
-      this.player.health = Math.min(
-        this.player.maxHealth,
-        this.player.health + 20
-      );
-      this.showMessage("Not poisoned, but gained 20 HP!", "#27ae60");
+      if (this.player.coins >= price){
+        if (
+          this.gameManager.hasStatusEffect(this.player, StatusEffectType.POISON)
+        ) {
+          this.gameManager.removeStatusEffect(this.player, StatusEffectType.POISON);
+          const antidoteEffect = this.gameManager.createAntidoteEffect();
+          this.gameManager.addStatusEffect(this.player, antidoteEffect);
+          this.showMessage("Poison cured! Antidote provides healing!", "#27ae60");
+        } else {
+          this.player.health = Math.min(
+            this.player.maxHealth,
+            this.player.health + 20
+          );
+          this.showMessage("Not poisoned, but gained 20 HP!", "#27ae60");
+          }
+      } else {
+        this.showMessage("You don't have enough coins!", "#f39c12");
+      }
     }
-  }
 
   private buyHealing(price: number) {
-    this.player.coins -= price;
-    const oldHealth = this.player.health;
-    this.player.health = Math.min(
-      this.player.maxHealth,
-      this.player.health + 25
-    );
-    const healed = this.player.health - oldHealth;
-    this.showMessage(`Healed ${healed} HP!`, "#f39c12");
-  }
+        this.player.coins -= price;
+        if (this.player.coins >= price){
+        const oldHealth = this.player.health;
+        this.player.health = Math.min(
+          this.player.maxHealth,
+          this.player.health + 25
+        );
+        const healed = this.player.health - oldHealth;
+        this.showMessage(`Healed ${healed} HP!`, "#f39c12");
+      } else {
+        this.showMessage("You don't have enough coins!", "#f39c12");
+      }
+    }
 
   private closeShop(elements: Phaser.GameObjects.GameObject[]) {
     elements.forEach((element) => element.destroy());
