@@ -99,11 +99,17 @@ export class ClassSelectionScene extends Phaser.Scene {
         case "archer":
           sprite = this.spriteManager.createArcher(0, -80, 2);
           break;
+        case "mage":
+          sprite = this.spriteManager.createMage(0, -80, 2);
+          break;
         case "barbarian":
           sprite = this.spriteManager.createBarbarian(0, -80, 2);
           break;
         case "assassin":
           sprite = this.spriteManager.createAssassin(0, -80, 2);
+          break;
+        case "cleric":
+          sprite = this.spriteManager.createCleric(0, -80, 2);
           break;
         default:
           sprite = this.spriteManager.createKnight(0, -80, 2);
@@ -211,8 +217,9 @@ export class ClassSelectionScene extends Phaser.Scene {
         baseAttack: 15,
         baseDefense: 8,
         startingCoins: 50,
-        specialAbility: "Shield Block - Reduce damage by 2",
+        specialAbility: "Shield Wall, Guardian's Resolve, Righteous Strike",
         sprite: "knight",
+        skills: [], // Will be populated by SkillManager
       },
       {
         name: CharacterClassName.ARCHER,
@@ -221,8 +228,21 @@ export class ClassSelectionScene extends Phaser.Scene {
         baseAttack: 20,
         baseDefense: 3,
         startingCoins: 60,
-        specialAbility: "Precise Shot - 20% crit chance",
+        specialAbility: "Piercing Shot, Hunter's Mark, Explosive Arrow",
         sprite: "archer",
+        skills: [], // Will be populated by SkillManager
+      },
+      {
+        name: CharacterClassName.MAGE,
+        description: "Glass-cannon spellcaster with elemental magic",
+        baseHealth: 70,
+        baseAttack: 12,
+        baseDefense: 2,
+        startingCoins: 40,
+        specialAbility: "Arcane Missiles, Mana Shield, Elemental Mastery",
+        sprite: "mage",
+        skills: [], // Will be populated by SkillManager
+        baseMana: 100,
       },
       {
         name: CharacterClassName.BARBARIAN,
@@ -231,8 +251,9 @@ export class ClassSelectionScene extends Phaser.Scene {
         baseAttack: 18,
         baseDefense: 5,
         startingCoins: 30,
-        specialAbility: "Berserker Rage - +5 ATK when below 50% HP",
+        specialAbility: "Berserker Rage, Bloodthirst, Earthquake Slam",
         sprite: "barbarian",
+        skills: [], // Will be populated by SkillManager
       },
       {
         name: CharacterClassName.ASSASSIN,
@@ -241,8 +262,20 @@ export class ClassSelectionScene extends Phaser.Scene {
         baseAttack: 16,
         baseDefense: 4,
         startingCoins: 70,
-        specialAbility: "Shadow Strike - 30% chance to avoid damage",
+        specialAbility: "Shadow Step, Poison Mastery, Thousand Cuts",
         sprite: "assassin",
+        skills: [], // Will be populated by SkillManager
+      },
+      {
+        name: CharacterClassName.CLERIC,
+        description: "Divine support with healing and protective magic",
+        baseHealth: 100,
+        baseAttack: 10,
+        baseDefense: 6,
+        startingCoins: 45,
+        specialAbility: "Divine Healing, Blessed Aura, Wrath of Heaven",
+        sprite: "cleric",
+        skills: [], // Will be populated by SkillManager
       },
     ];
   }
@@ -251,8 +284,10 @@ export class ClassSelectionScene extends Phaser.Scene {
     switch (className) {
       case CharacterClassName.KNIGHT: return 0x4ecdc4;
       case CharacterClassName.ARCHER: return 0x2ecc71;
+      case CharacterClassName.MAGE: return 0x3498db;
       case CharacterClassName.BARBARIAN: return 0xe74c3c;
       case CharacterClassName.ASSASSIN: return 0x9b59b6;
+      case CharacterClassName.CLERIC: return 0xf39c12;
       default: return 0x95a5a6;
     }
   }

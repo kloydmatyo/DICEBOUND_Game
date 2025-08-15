@@ -157,6 +157,22 @@ export class SpriteManager {
     return this.createCharacter(x, y, CharacterType.ASSASSIN, scale);
   }
 
+  createMage(
+    x: number,
+    y: number,
+    scale: number = 4
+  ): Phaser.GameObjects.Image {
+    return this.createCharacter(x, y, CharacterType.MAGE, scale);
+  }
+
+  createCleric(
+    x: number,
+    y: number,
+    scale: number = 4
+  ): Phaser.GameObjects.Image {
+    return this.createCharacter(x, y, CharacterType.CLERIC, scale);
+  }
+
   // Helper methods for specific enemies
   createGoblin(
     x: number,

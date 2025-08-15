@@ -19,6 +19,8 @@ export class GameScene extends Phaser.Scene {
   private diceButton!: Phaser.GameObjects.Text;
   private playerSprite!: Phaser.GameObjects.Image;
   private uiElements: { [key: string]: Phaser.GameObjects.Text } = {};
+  private skillButtons: Phaser.GameObjects.Text[] = [];
+  private skillTooltip: Phaser.GameObjects.Text | null = null;
 
   constructor() {
     super({ key: "GameScene" });
@@ -59,6 +61,7 @@ export class GameScene extends Phaser.Scene {
     this.boardManager.createBoard(this.gameState.board);
     this.createPlayer();
     this.createUI();
+    this.createSkillButtons();
     this.createDiceButton();
 
     // Add keyboard shortcut for testing events (E key)
@@ -86,11 +89,17 @@ export class GameScene extends Phaser.Scene {
         case "archer":
           this.playerSprite = this.spriteManager.createArcher(currentTile.x, currentTile.y, 1);
           break;
+        case "mage":
+          this.playerSprite = this.spriteManager.createMage(currentTile.x, currentTile.y, 1);
+          break;
         case "barbarian":
           this.playerSprite = this.spriteManager.createBarbarian(currentTile.x, currentTile.y, 1);
           break;
         case "assassin":
           this.playerSprite = this.spriteManager.createAssassin(currentTile.x, currentTile.y, 1);
+          break;
+        case "cleric":
+          this.playerSprite = this.spriteManager.createCleric(currentTile.x, currentTile.y, 1);
           break;
         default:
           this.playerSprite = this.spriteManager.createKnight(currentTile.x, currentTile.y, 1);
@@ -144,6 +153,101 @@ export class GameScene extends Phaser.Scene {
 
     this.updateUI();
   }
+
+  private createSkillButtons() {
+    const skillManager = this.gameManager.getSkillManager();
+    const playerSkills = this.player.skills.filter(ps => ps.unlocked);
+    
+    const startX = this.cameras.main.width - 200;
+    const startY = 100;
+    const buttonHeight = 35;
+    
+    // Title
+    this.add.text(startX, startY - 30, "SKILLS", {
+      fontSize: "18px",
+      color: "#ffe66d",
+      fontFamily: "Courier New, monospace",
+    }).setOrigin(0.5);
+
+    playerSkills.forEach((playerSkill, index) => {
+      const skill = skillManager.getSkill(playerSkill.skillId);
+      if (!skill) return;
+
+      const y = startY + index * buttonHeight;
+      const canUse = skillManager.canUseSkill(this.player, skill.id);
+      const cooldown = this.player.skillCooldowns[skill.id] || 0;
+      
+      let buttonText = skill.name;
+      if (cooldown > 0) {
+        buttonText += ` (${cooldown})`;
+      }
+      
+      const button = this.add.text(startX, y, buttonText, {
+        fontSize: "14px",
+        color: canUse ? "#4ecdc4" : "#666666",
+        fontFamily: "Courier New, monospace",
+        backgroundColor: "#16213e",
+        padding: { x: 10, y: 5 },
+      }).setOrigin(0.5);
+
+      if (canUse && skill.type === "active") {
+        button.setInteractive();
+        button.on("pointerdown", () => this.useSkill(skill.id));
+        button.on("pointerover", () => {
+          button.setStyle({ color: "#ff6b6b" });
+          this.showSkillTooltip(skill, button.x, button.y - 30);
+        });
+        button.on("pointerout", () => {
+          button.setStyle({ color: "#4ecdc4" });
+          this.hideSkillTooltip();
+        });
+      }
+
+      this.skillButtons.push(button);
+    });
+  }
+
+  private showSkillTooltip(skill: any, x: number, y: number) {
+    // Simple tooltip showing skill description
+    this.skillTooltip = this.add.text(x, y, skill.description, {
+      fontSize: "12px",
+      color: "#ffffff",
+      fontFamily: "Courier New, monospace",
+      backgroundColor: "#000000",
+      padding: { x: 8, y: 4 },
+      wordWrap: { width: 200 },
+    }).setOrigin(0.5);
+  }
+
+  private hideSkillTooltip() {
+    if (this.skillTooltip) {
+      this.skillTooltip.destroy();
+      this.skillTooltip = null;
+    }
+  }
+
+  private useSkill(skillId: string) {
+    const skillManager = this.gameManager.getSkillManager();
+    const result = skillManager.useSkill(this.player, skillId);
+    
+    if (result.success) {
+      this.showMessage(result.message, "#4ecdc4");
+      this.updateSkillButtons();
+      this.updateUI();
+    } else {
+      this.showMessage("Cannot use skill!", "#e74c3c");
+    }
+  }
+
+  private updateSkillButtons() {
+    // Destroy existing buttons
+    this.skillButtons.forEach(button => button.destroy());
+    this.skillButtons = [];
+    
+    // Recreate buttons with updated cooldowns
+    this.createSkillButtons();
+  }
+
   private createDiceButton() {
     const centerX = this.cameras.main.width / 2;
     const bottomY = this.cameras.main.height - 80;
@@ -983,6 +1087,10 @@ export class GameScene extends Phaser.Scene {
     // Apply status effects
     const statusMessages = this.gameManager.applyStatusEffects(this.player);
 
+    // Update skill cooldowns
+    const skillManager = this.gameManager.getSkillManager();
+    skillManager.updateCooldowns(this.player);
+
     // Show status effect messages if any
     if (statusMessages.length > 0) {
       const combinedMessage = statusMessages.join("\n");
@@ -990,6 +1098,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.updateUI();
+    this.updateSkillButtons();
+    
     this.time.delayedCall(2500, () => {
       this.diceButton.setStyle({ color: "#ffe66d" });
       this.diceButton.setInteractive();
@@ -1227,5 +1337,17 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.uiElements.status.setText(statusTexts.join(" | "));
+    
+    // Show mana for mage class
+    if (this.player.mana !== undefined && this.player.maxMana !== undefined) {
+      if (!this.uiElements.mana) {
+        this.uiElements.mana = this.add.text(20, 200, "", {
+          fontSize: "18px",
+          color: "#3498db",
+          fontFamily: "Courier New, monospace",
+        });
+      }
+      this.uiElements.mana.setText(`Mana: ${this.player.mana}/${this.player.maxMana}`);
+    }
   }
 }

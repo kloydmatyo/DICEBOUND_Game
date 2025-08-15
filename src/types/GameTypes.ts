@@ -14,6 +14,10 @@ export interface Player {
   stats: PlayerStats;
   statusEffects: StatusEffect[];
   baseStats: BaseStats; // Store original stats before buffs
+  skills: PlayerSkill[]; // Available skills
+  skillCooldowns: { [skillId: string]: number }; // Skill cooldowns
+  mana?: number; // For mage class
+  maxMana?: number; // For mage class
 }
 
 export interface CharacterClass {
@@ -25,13 +29,78 @@ export interface CharacterClass {
   startingCoins: number;
   specialAbility: string;
   sprite: string;
+  skills: Skill[]; // Class-specific skills
+  baseMana?: number; // For mage class
 }
 
 export enum CharacterClassName {
   KNIGHT = "knight",
   ARCHER = "archer",
+  MAGE = "mage",
   BARBARIAN = "barbarian",
   ASSASSIN = "assassin",
+  CLERIC = "cleric",
+}
+
+export interface Skill {
+  id: string;
+  name: string;
+  type: SkillType;
+  description: string;
+  effect: SkillEffect;
+  cooldown: number;
+  manaCost?: number;
+  className: CharacterClassName;
+}
+
+export interface PlayerSkill {
+  skillId: string;
+  level: number;
+  unlocked: boolean;
+}
+
+export interface SkillEffect {
+  type: SkillEffectType;
+  value: number;
+  duration?: number;
+  target: SkillTarget;
+  conditions?: SkillCondition[];
+  additionalEffects?: SkillEffect[];
+}
+
+export enum SkillType {
+  ACTIVE = "active",
+  PASSIVE = "passive",
+}
+
+export enum SkillEffectType {
+  DAMAGE = "damage",
+  HEAL = "heal",
+  BUFF = "buff",
+  DEBUFF = "debuff",
+  SHIELD = "shield",
+  SPECIAL = "special",
+}
+
+export enum SkillTarget {
+  SELF = "self",
+  ENEMY = "enemy",
+  ALL_ENEMIES = "all_enemies",
+  ALLY = "ally",
+  ALL_ALLIES = "all_allies",
+}
+
+export interface SkillCondition {
+  type: SkillConditionType;
+  value: number;
+}
+
+export enum SkillConditionType {
+  HEALTH_BELOW = "health_below",
+  HEALTH_ABOVE = "health_above",
+  ENEMY_POISONED = "enemy_poisoned",
+  ALLY_DEFEATED = "ally_defeated",
+  CONSECUTIVE_HIT = "consecutive_hit",
 }
 
 export interface BaseStats {
@@ -108,6 +177,16 @@ export enum StatusEffectType {
   STRENGTH_BOOST = "strength_boost",
   DEFENSE_BOOST = "defense_boost",
   BLESSING = "blessing",
+  BURN = "burn",
+  FREEZE = "freeze",
+  STUN = "stun",
+  BERSERKER_RAGE = "berserker_rage",
+  SHADOW_STEP = "shadow_step",
+  SHIELD_WALL = "shield_wall",
+  MANA_SHIELD = "mana_shield",
+  BLESSED_AURA = "blessed_aura",
+  HUNTERS_MARK = "hunters_mark",
+  BLOODTHIRST = "bloodthirst",
 }
 
 export interface BoardTile {

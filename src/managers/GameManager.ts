@@ -9,10 +9,17 @@ import {
   StatusEffectType,
   CharacterClass,
   CharacterClassName,
+  Skill,
 } from "../types/GameTypes";
+import { SkillManager } from "./SkillManager";
 
 export class GameManager {
   private readonly BOARD_SIZE = 20;
+  private skillManager: SkillManager;
+
+  constructor() {
+    this.skillManager = new SkillManager();
+  }
 
   initializeGame(selectedClass?: CharacterClass): GameState {
     const player = selectedClass ? this.createPlayerWithClass(selectedClass) : this.createPlayer();
@@ -38,13 +45,14 @@ export class GameManager {
       startingCoins: 50,
       specialAbility: "Shield Block - Reduce damage by 2",
       sprite: "knight",
+      skills: this.skillManager.getClassSkills(CharacterClassName.KNIGHT),
     };
 
     return this.createPlayerWithClass(defaultClass);
   }
 
   private createPlayerWithClass(characterClass: CharacterClass): Player {
-    return {
+    const player: Player = {
       id: "player1",
       name: characterClass.name.charAt(0).toUpperCase() + characterClass.name.slice(1),
       class: characterClass,
@@ -69,7 +77,14 @@ export class GameManager {
         defense: characterClass.baseDefense,
         maxHealth: characterClass.baseHealth,
       },
+      skills: [],
+      skillCooldowns: {},
     };
+
+    // Initialize skills
+    this.skillManager.initializePlayerSkills(player);
+
+    return player;
   }
 
   generateBoard(floor: number = 1): BoardTile[] {
@@ -358,6 +373,11 @@ export class GameManager {
   // Check if this is the final boss floor
   isFinalFloor(floor: number): boolean {
     return floor === 15;
+  }
+
+  // Get skill manager for external access
+  getSkillManager(): SkillManager {
+    return this.skillManager;
   }
 
   // Generate boss enemy for final floor
