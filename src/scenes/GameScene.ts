@@ -78,37 +78,69 @@ export class GameScene extends Phaser.Scene {
   private createPlayer() {
     const currentTile = this.gameState.board[this.player.position];
     console.log("Creating player sprite at:", currentTile.x, currentTile.y);
-    
+
     // Create sprite based on player's class
     const className = this.player.class?.name || "knight";
     try {
       switch (className) {
         case "knight":
-          this.playerSprite = this.spriteManager.createKnight(currentTile.x, currentTile.y, 1);
+          this.playerSprite = this.spriteManager.createKnight(
+            currentTile.x,
+            currentTile.y,
+            1
+          );
           break;
         case "archer":
-          this.playerSprite = this.spriteManager.createArcher(currentTile.x, currentTile.y, 1);
+          this.playerSprite = this.spriteManager.createArcher(
+            currentTile.x,
+            currentTile.y,
+            1
+          );
           break;
         case "mage":
-          this.playerSprite = this.spriteManager.createMage(currentTile.x, currentTile.y, 1);
+          this.playerSprite = this.spriteManager.createMage(
+            currentTile.x,
+            currentTile.y,
+            1
+          );
           break;
         case "barbarian":
-          this.playerSprite = this.spriteManager.createBarbarian(currentTile.x, currentTile.y, 1);
+          this.playerSprite = this.spriteManager.createBarbarian(
+            currentTile.x,
+            currentTile.y,
+            1
+          );
           break;
         case "assassin":
-          this.playerSprite = this.spriteManager.createAssassin(currentTile.x, currentTile.y, 1);
+          this.playerSprite = this.spriteManager.createAssassin(
+            currentTile.x,
+            currentTile.y,
+            1
+          );
           break;
         case "cleric":
-          this.playerSprite = this.spriteManager.createCleric(currentTile.x, currentTile.y, 1);
+          this.playerSprite = this.spriteManager.createCleric(
+            currentTile.x,
+            currentTile.y,
+            1
+          );
           break;
         default:
-          this.playerSprite = this.spriteManager.createKnight(currentTile.x, currentTile.y, 1);
+          this.playerSprite = this.spriteManager.createKnight(
+            currentTile.x,
+            currentTile.y,
+            1
+          );
       }
     } catch (error) {
       console.warn("Failed to create class sprite, using knight:", error);
-      this.playerSprite = this.spriteManager.createKnight(currentTile.x, currentTile.y, 1);
+      this.playerSprite = this.spriteManager.createKnight(
+        currentTile.x,
+        currentTile.y,
+        1
+      );
     }
-    
+
     console.log("Player sprite created:", this.playerSprite);
   }
 
@@ -156,18 +188,20 @@ export class GameScene extends Phaser.Scene {
 
   private createSkillButtons() {
     const skillManager = this.gameManager.getSkillManager();
-    const playerSkills = this.player.skills.filter(ps => ps.unlocked);
-    
+    const playerSkills = this.player.skills.filter((ps) => ps.unlocked);
+
     const startX = this.cameras.main.width - 250;
     const startY = 100;
     const buttonHeight = 40;
-    
+
     // Title
-    this.add.text(startX, startY - 30, "SKILLS", {
-      fontSize: "18px",
-      color: "#ffe66d",
-      fontFamily: "Courier New, monospace",
-    }).setOrigin(0.5);
+    this.add
+      .text(startX, startY - 30, "SKILLS", {
+        fontSize: "18px",
+        color: "#ffe66d",
+        fontFamily: "Courier New, monospace",
+      })
+      .setOrigin(0.5);
 
     playerSkills.forEach((playerSkill, index) => {
       const skill = skillManager.getSkill(playerSkill.skillId);
@@ -176,19 +210,21 @@ export class GameScene extends Phaser.Scene {
       const y = startY + index * buttonHeight;
       const canUse = skillManager.canUseSkill(this.player, skill.id);
       const cooldown = this.player.skillCooldowns[skill.id] || 0;
-      
+
       let buttonText = skill.name;
       if (cooldown > 0) {
         buttonText += ` (${cooldown})`;
       }
-      
-      const button = this.add.text(startX, y, buttonText, {
-        fontSize: "14px",
-        color: canUse ? "#4ecdc4" : "#666666",
-        fontFamily: "Courier New, monospace",
-        backgroundColor: "#16213e",
-        padding: { x: 10, y: 5 },
-      }).setOrigin(0.5);
+
+      const button = this.add
+        .text(startX, y, buttonText, {
+          fontSize: "14px",
+          color: canUse ? "#4ecdc4" : "#666666",
+          fontFamily: "Courier New, monospace",
+          backgroundColor: "#16213e",
+          padding: { x: 10, y: 5 },
+        })
+        .setOrigin(0.5);
 
       if (canUse && skill.type === "active") {
         button.setInteractive();
@@ -209,14 +245,16 @@ export class GameScene extends Phaser.Scene {
 
   private showSkillTooltip(skill: any, x: number, y: number) {
     // Simple tooltip showing skill description
-    this.skillTooltip = this.add.text(x, y, skill.description, {
-      fontSize: "12px",
-      color: "#ffffff",
-      fontFamily: "Courier New, monospace",
-      backgroundColor: "#000000",
-      padding: { x: 8, y: 4 },
-      wordWrap: { width: 200 },
-    }).setOrigin(0.5);
+    this.skillTooltip = this.add
+      .text(x, y, skill.description, {
+        fontSize: "12px",
+        color: "#ffffff",
+        fontFamily: "Courier New, monospace",
+        backgroundColor: "#000000",
+        padding: { x: 8, y: 4 },
+        wordWrap: { width: 200 },
+      })
+      .setOrigin(0.5);
   }
 
   private hideSkillTooltip() {
@@ -229,7 +267,7 @@ export class GameScene extends Phaser.Scene {
   private useSkill(skillId: string) {
     const skillManager = this.gameManager.getSkillManager();
     const result = skillManager.useSkill(this.player, skillId);
-    
+
     if (result.success) {
       this.showMessage(result.message, "#4ecdc4");
       this.updateSkillButtons();
@@ -241,9 +279,9 @@ export class GameScene extends Phaser.Scene {
 
   private updateSkillButtons() {
     // Destroy existing buttons
-    this.skillButtons.forEach(button => button.destroy());
+    this.skillButtons.forEach((button) => button.destroy());
     this.skillButtons = [];
-    
+
     // Recreate buttons with updated cooldowns
     this.createSkillButtons();
   }
@@ -586,6 +624,16 @@ export class GameScene extends Phaser.Scene {
         () => this.buyBlessing(blessingPrice)
       );
       shopItems.push(blessingText);
+
+      const amuletPrice = 50;
+      const amuletText = this.createShopItem(
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2 + 60,
+        `Heartstone Amulet - ${amuletPrice} coins`,
+        blessingPrice,
+        () => this.buyAmulet(amuletPrice)
+      );
+      shopItems.push(amuletText);
     }
 
     // Close button
@@ -691,6 +739,16 @@ export class GameScene extends Phaser.Scene {
         "Blessing purchased! +5 to all stats for 3 turns!",
         "#f39c12"
       );
+    } else {
+      this.showMessage("Not enough coins!", "#e74c3c");
+    }
+  }
+
+  private buyAmulet(price: number) {
+    if (this.player.coins >= price) {
+      this.player.coins -= price;
+      this.gameManager.updateBaseStats(this.player, 0, 0, 20);
+      this.showMessage("Max Health Increased! +20 Max HP!", "#f39c12");
     } else {
       this.showMessage("Not enough coins!", "#e74c3c");
     }
@@ -1099,7 +1157,7 @@ export class GameScene extends Phaser.Scene {
 
     this.updateUI();
     this.updateSkillButtons();
-    
+
     this.time.delayedCall(2500, () => {
       this.diceButton.setStyle({ color: "#ffe66d" });
       this.diceButton.setInteractive();
@@ -1173,7 +1231,10 @@ export class GameScene extends Phaser.Scene {
 
   private testShop() {
     // Test shop functionality - opens special shop with all items
-    this.showMessage("TEST: Opening SPECIAL shop menu with all items!", "#f39c12");
+    this.showMessage(
+      "TEST: Opening SPECIAL shop menu with all items!",
+      "#f39c12"
+    );
 
     // Delay to show the message, then open special shop
     this.time.delayedCall(1500, () => {
@@ -1184,7 +1245,7 @@ export class GameScene extends Phaser.Scene {
   private showTestShopMenu() {
     // Force special shop for testing - shows ALL items
     const isSpecialShop = true; // Force special shop for testing
-    
+
     // Create shop background
     const shopBg = this.add.rectangle(
       this.cameras.main.width / 2,
@@ -1212,16 +1273,18 @@ export class GameScene extends Phaser.Scene {
     const shopItems: Phaser.GameObjects.GameObject[] = [shopBg, shopTitle];
 
     // Test shop info
-    const infoText = this.add.text(
-      this.cameras.main.width / 2,
-      this.cameras.main.height / 2 - 150,
-      "All items available for testing",
-      {
-        fontSize: "16px",
-        color: "#4ecdc4",
-        fontFamily: "Courier New, monospace",
-      }
-    ).setOrigin(0.5);
+    const infoText = this.add
+      .text(
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2 - 150,
+        "All items available for testing",
+        {
+          fontSize: "16px",
+          color: "#4ecdc4",
+          fontFamily: "Courier New, monospace",
+        }
+      )
+      .setOrigin(0.5);
     shopItems.push(infoText);
 
     // Regular items
@@ -1337,7 +1400,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.uiElements.status.setText(statusTexts.join(" | "));
-    
+
     // Show mana for mage class
     if (this.player.mana !== undefined && this.player.maxMana !== undefined) {
       if (!this.uiElements.mana) {
@@ -1347,7 +1410,9 @@ export class GameScene extends Phaser.Scene {
           fontFamily: "Courier New, monospace",
         });
       }
-      this.uiElements.mana.setText(`Mana: ${this.player.mana}/${this.player.maxMana}`);
+      this.uiElements.mana.setText(
+        `Mana: ${this.player.mana}/${this.player.maxMana}`
+      );
     }
   }
 }
