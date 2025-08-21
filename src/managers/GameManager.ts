@@ -12,13 +12,16 @@ import {
   Skill,
 } from "../types/GameTypes";
 import { SkillManager } from "./SkillManager";
+import { InventoryManager } from "./InventoryManager";
 
 export class GameManager {
   private readonly BOARD_SIZE = 20;
   private skillManager: SkillManager;
+  private inventoryManager: InventoryManager;
 
   constructor() {
     this.skillManager = new SkillManager();
+    this.inventoryManager = new InventoryManager();
   }
 
   initializeGame(selectedClass?: CharacterClass): GameState {
@@ -85,6 +88,9 @@ export class GameManager {
 
     // Initialize skills
     this.skillManager.initializePlayerSkills(player);
+
+    // Add starting items
+    this.addStartingItems(player);
 
     return player;
   }
@@ -403,5 +409,54 @@ export class GameManager {
       defense: Math.round(bossTemplate.baseDefense * floorMultiplier),
       coins: Math.round(bossTemplate.coins * floorMultiplier),
     };
+  }
+
+  // Add starting items to player inventory
+  private addStartingItems(player: Player): void {
+    // Add a basic weapon based on class
+    let startingWeapon;
+    switch (player.class.name) {
+      case "knight":
+        startingWeapon = this.inventoryManager.generateRandomItem(1);
+        startingWeapon.name = "Iron Sword";
+        startingWeapon.type = "weapon" as any;
+        break;
+      case "archer":
+        startingWeapon = this.inventoryManager.generateRandomItem(1);
+        startingWeapon.name = "Wooden Bow";
+        startingWeapon.type = "weapon" as any;
+        break;
+      case "mage":
+        startingWeapon = this.inventoryManager.generateRandomItem(1);
+        startingWeapon.name = "Magic Staff";
+        startingWeapon.type = "weapon" as any;
+        break;
+      default:
+        startingWeapon = this.inventoryManager.generateRandomItem(1);
+        startingWeapon.name = "Basic Weapon";
+        startingWeapon.type = "weapon" as any;
+    }
+
+    // Add starting items
+    this.inventoryManager.addItem(player, startingWeapon);
+    
+    // Add a basic armor piece
+    const startingArmor = this.inventoryManager.generateRandomItem(1);
+    startingArmor.name = "Leather Armor";
+    startingArmor.type = "armor" as any;
+    this.inventoryManager.addItem(player, startingArmor);
+
+    // Add a health potion
+    const healthPotion = {
+      id: `potion_${Date.now()}`,
+      name: "Health Potion",
+      type: "consumable" as any,
+      description: "Restores 50 HP",
+      value: 25,
+      quantity: 2,
+      rarity: "common" as any,
+      level: 1,
+    };
+    this.inventoryManager.addItem(player, healthPotion);
   }
 }

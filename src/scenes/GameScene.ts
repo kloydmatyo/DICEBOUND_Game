@@ -8,11 +8,13 @@ import {
 import { GameManager } from "../managers/GameManager";
 import { BoardManager } from "../managers/BoardManager";
 import { SpriteManager, CharacterType } from "../managers/SpriteManager";
+import { InventoryManager } from "../managers/InventoryManager";
 
 export class GameScene extends Phaser.Scene {
   private gameManager!: GameManager;
   private boardManager!: BoardManager;
   private spriteManager!: SpriteManager;
+  private inventoryManager!: InventoryManager;
   private player!: Player;
   private gameState!: GameState;
   private selectedClass: any;
@@ -21,6 +23,10 @@ export class GameScene extends Phaser.Scene {
   private uiElements: { [key: string]: Phaser.GameObjects.Text } = {};
   private skillButtons: Phaser.GameObjects.Text[] = [];
   private skillTooltip: Phaser.GameObjects.Text | null = null;
+  private inventoryButton!: Phaser.GameObjects.Text;
+  private inventoryPanel: Phaser.GameObjects.Container | null = null;
+  private equipmentPanel: Phaser.GameObjects.Container | null = null;
+  private isInventoryOpen = false;
 
   constructor() {
     super({ key: "GameScene" });
@@ -49,9 +55,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
+    console.log("GameScene create() called");
     this.gameManager = new GameManager();
     this.boardManager = new BoardManager(this);
     this.spriteManager = new SpriteManager(this);
+    this.inventoryManager = new InventoryManager();
+    console.log("Managers initialized");
 
     if (!this.gameState) {
       this.gameState = this.gameManager.initializeGame(this.selectedClass);
@@ -72,6 +81,12 @@ export class GameScene extends Phaser.Scene {
     // Add keyboard shortcut for simulating turns (T key)
     this.input.keyboard?.on("keydown-T", () => {
       this.simulateTurn();
+    });
+
+    // Add keyboard shortcut for inventory (I key)
+    this.input.keyboard?.on("keydown-I", () => {
+      console.log("I key pressed!");
+      this.toggleInventory();
     });
   }
 
@@ -182,6 +197,38 @@ export class GameScene extends Phaser.Scene {
       color: "#e74c3c",
       fontFamily: "Courier New, monospace",
     });
+
+    // Add inventory button directly in UI creation
+    console.log("Creating inventory button in UI...");
+    this.inventoryButton = this.add.text(1100, 20, "📦 INVENTORY", {
+      fontSize: "18px",
+      color: "#ffffff",
+      backgroundColor: "#e74c3c",
+      padding: { x: 10, y: 5 },
+      fontFamily: "Arial",
+    });
+
+    this.inventoryButton.setInteractive();
+    this.inventoryButton.setDepth(1000); // Ensure it's visible
+
+    this.inventoryButton.on("pointerdown", () => {
+      console.log("Inventory clicked!");
+      this.toggleInventory();
+    });
+
+    this.inventoryButton.on("pointerover", () => {
+      this.inventoryButton.setStyle({ backgroundColor: "#c0392b" });
+    });
+
+    this.inventoryButton.on("pointerout", () => {
+      this.inventoryButton.setStyle({ backgroundColor: "#e74c3c" });
+    });
+
+    console.log(
+      "Inventory button created at:",
+      this.inventoryButton.x,
+      this.inventoryButton.y
+    );
 
     this.updateUI();
   }
@@ -522,7 +569,26 @@ export class GameScene extends Phaser.Scene {
   private handleTreasureTile() {
     const coins = Math.floor(Math.random() * 20) + 10;
     this.player.coins += coins;
-    this.showMessage(`Found ${coins} coins!`, "#ffe66d");
+
+    // 50% chance to also find an item
+    if (Math.random() < 0.5) {
+      const item = this.inventoryManager.generateRandomItem(
+        this.gameState.currentFloor
+      );
+      const success = this.inventoryManager.addItem(this.player, item);
+
+      if (success) {
+        this.showMessage(`Found ${coins} coins and ${item.name}!`, "#ffe66d");
+      } else {
+        this.showMessage(
+          `Found ${coins} coins! (Inventory full - item lost)`,
+          "#ffe66d"
+        );
+      }
+    } else {
+      this.showMessage(`Found ${coins} coins!`, "#ffe66d");
+    }
+
     this.endTurn();
   }
 
@@ -603,8 +669,6 @@ export class GameScene extends Phaser.Scene {
     );
     shopItems.push(healingText);
 
-    
-
     // Special shop items (floors 4, 8, 12)
     if (isSpecialShop) {
       const upgradePrice = 50;
@@ -647,7 +711,6 @@ export class GameScene extends Phaser.Scene {
       );
       shopItems.push(armorText);
     }
-
 
     // Close button
     const closeButton = this.add
@@ -1436,6 +1499,363 @@ export class GameScene extends Phaser.Scene {
       this.uiElements.mana.setText(
         `Mana: ${this.player.mana}/${this.player.maxMana}`
       );
+    }
+  }
+
+  private toggleInventory() {
+    console.log(
+      "Toggle inventory called, current state:",
+      this.isInventoryOpen
+    );
+    if (this.isInventoryOpen) {
+      this.closeInventory();
+    } else {
+      this.openInventory();
+    }
+  }
+
+  private openInventory() {
+    console.log("Opening inventory...");
+    this.isInventoryOpen = true;
+    this.createInventoryPanel();
+    this.createEquipmentPanel();
+  }
+
+  private closeInventory() {
+    console.log("Closing inventory...");
+    this.isInventoryOpen = false;
+    if (this.inventoryPanel) {
+      this.inventoryPanel.destroy();
+      this.inventoryPanel = null;
+    }
+    if (this.equipmentPanel) {
+      this.equipmentPanel.destroy();
+      this.equipmentPanel = null;
+    }
+  }
+
+  private createInventoryPanel() {
+    const panelX = 400;
+    const panelY = 300;
+    const panelWidth = 500;
+    const panelHeight = 400;
+
+    this.inventoryPanel = this.add.container(panelX, panelY);
+
+    // Background
+    const bg = this.add.rectangle(
+      0,
+      0,
+      panelWidth,
+      panelHeight,
+      0x2c3e50,
+      0.95
+    );
+    bg.setStrokeStyle(2, 0x34495e);
+    this.inventoryPanel?.add(bg);
+
+    // Title
+    const title = this.add.text(0, -panelHeight / 2 + 20, "Inventory", {
+      fontSize: "20px",
+      color: "#ffffff",
+      fontFamily: "Courier New, monospace",
+    });
+    title.setOrigin(0.5);
+    this.inventoryPanel?.add(title);
+
+    // Close button
+    const closeBtn = this.add.text(
+      panelWidth / 2 - 20,
+      -panelHeight / 2 + 20,
+      "✕",
+      {
+        fontSize: "18px",
+        color: "#e74c3c",
+        fontFamily: "Courier New, monospace",
+      }
+    );
+    closeBtn.setOrigin(0.5);
+    closeBtn.setInteractive();
+    closeBtn.on("pointerdown", () => this.closeInventory());
+    this.inventoryPanel?.add(closeBtn);
+
+    // Inventory grid
+    const startX = -panelWidth / 2 + 40;
+    const startY = -panelHeight / 2 + 60;
+    const slotSize = 40;
+    const slotsPerRow = 10;
+    const rows = 2;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < slotsPerRow; col++) {
+        const slotIndex = row * slotsPerRow + col;
+        const x = startX + col * (slotSize + 5);
+        const y = startY + row * (slotSize + 5);
+
+        // Slot background
+        const slot = this.add.rectangle(
+          x,
+          y,
+          slotSize,
+          slotSize,
+          0x34495e,
+          0.8
+        );
+        slot.setStrokeStyle(1, 0x7f8c8d);
+        this.inventoryPanel?.add(slot);
+
+        // Item in slot
+        if (slotIndex < this.player.inventory.length) {
+          const item = this.player.inventory[slotIndex];
+          const itemText = this.add.text(x, y, this.getItemIcon(item.type), {
+            fontSize: "16px",
+            color: this.getRarityColor(item.rarity),
+            fontFamily: "Courier New, monospace",
+          });
+          itemText.setOrigin(0.5);
+          itemText.setInteractive();
+
+          // Item tooltip and interaction
+          itemText.on("pointerover", () => {
+            this.showItemTooltip(item, x + panelX, y + panelY);
+          });
+
+          itemText.on("pointerout", () => {
+            this.hideItemTooltip();
+          });
+
+          itemText.on("pointerdown", () => {
+            this.handleItemClick(item);
+          });
+
+          this.inventoryPanel?.add(itemText);
+
+          // Quantity indicator
+          if (item.quantity > 1) {
+            const quantityText = this.add.text(
+              x + slotSize / 2 - 5,
+              y + slotSize / 2 - 5,
+              item.quantity.toString(),
+              {
+                fontSize: "10px",
+                color: "#ffffff",
+                fontFamily: "Courier New, monospace",
+              }
+            );
+            quantityText.setOrigin(1);
+            this.inventoryPanel?.add(quantityText);
+          }
+        }
+      }
+    }
+  }
+
+  private createEquipmentPanel() {
+    const panelX = 100;
+    const panelY = 300;
+    const panelWidth = 250;
+    const panelHeight = 400;
+
+    // Ensure equipment object exists
+    if (!this.player.equipment) {
+      this.player.equipment = {};
+    }
+
+    this.equipmentPanel = this.add.container(panelX, panelY);
+
+    // Background
+    const bg = this.add.rectangle(
+      0,
+      0,
+      panelWidth,
+      panelHeight,
+      0x2c3e50,
+      0.95
+    );
+    bg.setStrokeStyle(2, 0x34495e);
+    this.equipmentPanel?.add(bg);
+
+    // Title
+    const title = this.add.text(0, -panelHeight / 2 + 20, "Equipment", {
+      fontSize: "20px",
+      color: "#ffffff",
+      fontFamily: "Courier New, monospace",
+    });
+    title.setOrigin(0.5);
+    this.equipmentPanel?.add(title);
+
+    // Equipment slots - safely access equipment with fallbacks
+    const slots = [
+      { name: "Helmet", item: this.player.equipment?.helmet || null, y: -120 },
+      { name: "Weapon", item: this.player.equipment?.weapon || null, y: -60 },
+      { name: "Armor", item: this.player.equipment?.armor || null, y: 0 },
+      {
+        name: "Accessory",
+        item: this.player.equipment?.accessory || null,
+        y: 60,
+      },
+      { name: "Boots", item: this.player.equipment?.boots || null, y: 120 },
+    ];
+
+    slots.forEach((slot) => {
+      // Slot label
+      const label = this.add.text(-80, slot.y - 20, slot.name + ":", {
+        fontSize: "14px",
+        color: "#bdc3c7",
+        fontFamily: "Courier New, monospace",
+      });
+      this.equipmentPanel?.add(label);
+
+      // Slot background
+      const slotBg = this.add.rectangle(0, slot.y, 40, 40, 0x34495e, 0.8);
+      slotBg.setStrokeStyle(1, 0x7f8c8d);
+      this.equipmentPanel?.add(slotBg);
+
+      // Equipped item
+      if (slot.item) {
+        const itemIcon = this.add.text(
+          0,
+          slot.y,
+          this.getItemIcon(slot.item.type),
+          {
+            fontSize: "16px",
+            color: this.getRarityColor(slot.item.rarity),
+            fontFamily: "Courier New, monospace",
+          }
+        );
+        itemIcon.setOrigin(0.5);
+        itemIcon.setInteractive();
+
+        itemIcon.on("pointerover", () => {
+          this.showItemTooltip(slot.item!, panelX, slot.y + panelY);
+        });
+
+        itemIcon.on("pointerout", () => {
+          this.hideItemTooltip();
+        });
+
+        itemIcon.on("pointerdown", () => {
+          this.unequipItem(slot.item!);
+        });
+
+        this.equipmentPanel?.add(itemIcon);
+      }
+    });
+  }
+
+  private getItemIcon(itemType: string | undefined): string {
+    if (!itemType) return "📦";
+
+    switch (itemType.toLowerCase()) {
+      case "weapon":
+        return "⚔️";
+      case "armor":
+        return "�️";
+      case "accessory":
+        return "💍";
+      case "consumable":
+        return "🧪";
+      case "treasure":
+        return "�";
+      default:
+        return "📦";
+    }
+  }
+
+  private getRarityColor(rarity: string | undefined): string {
+    if (!rarity) return "#ffffff";
+
+    switch (rarity.toLowerCase()) {
+      case "common":
+        return "#ffffff";
+      case "uncommon":
+        return "#2ecc71";
+      case "rare":
+        return "#3498db";
+      case "epic":
+        return "#9b59b6";
+      case "legendary":
+        return "#f39c12";
+      default:
+        return "#ffffff";
+    }
+  }
+
+  private showItemTooltip(item: any, x: number, y: number) {
+    this.hideItemTooltip();
+
+    let tooltipText = `${item.name}\n`;
+    tooltipText += `${item.description}\n`;
+    tooltipText += `Rarity: ${item.rarity}\n`;
+    tooltipText += `Value: ${item.value} coins\n`;
+
+    if (item.attack) tooltipText += `Attack: +${item.attack}\n`;
+    if (item.defense) tooltipText += `Defense: +${item.defense}\n`;
+    if (item.healthBonus) tooltipText += `Health: +${item.healthBonus}\n`;
+    if (item.effectValue) tooltipText += `Effect: +${item.effectValue}\n`;
+
+    this.skillTooltip = this.add.text(x + 50, y, tooltipText, {
+      fontSize: "12px",
+      color: "#ffffff",
+      backgroundColor: "#2c3e50",
+      padding: { x: 8, y: 6 },
+      fontFamily: "Courier New, monospace",
+    });
+    this.skillTooltip.setDepth(1000);
+  }
+
+  private hideItemTooltip() {
+    if (this.skillTooltip) {
+      this.skillTooltip.destroy();
+      this.skillTooltip = null;
+    }
+  }
+
+  private handleItemClick(item: any) {
+    if (
+      item.type === "weapon" ||
+      item.type === "armor" ||
+      item.type === "accessory"
+    ) {
+      this.equipItem(item);
+    } else if (item.type === "consumable") {
+      this.useItem(item);
+    }
+  }
+
+  private equipItem(item: any) {
+    const success = this.inventoryManager.equipItem(this.player, item);
+    if (success) {
+      this.showMessage(`Equipped ${item.name}!`, "#2ecc71");
+      this.updateUI();
+      this.refreshInventoryPanels();
+    } else {
+      this.showMessage("Cannot equip item!", "#e74c3c");
+    }
+  }
+
+  private unequipItem(item: any) {
+    const success = this.inventoryManager.unequipItem(this.player, item);
+    if (success) {
+      this.showMessage(`Unequipped ${item.name}!`, "#f39c12");
+      this.updateUI();
+      this.refreshInventoryPanels();
+    } else {
+      this.showMessage("Inventory full!", "#e74c3c");
+    }
+  }
+
+  private useItem(item: any) {
+    // Implement consumable item usage
+    this.showMessage(`Used ${item.name}!`, "#3498db");
+    this.inventoryManager.removeItem(this.player, item.id, 1);
+    this.refreshInventoryPanels();
+  }
+
+  private refreshInventoryPanels() {
+    if (this.isInventoryOpen) {
+      this.closeInventory();
+      this.openInventory();
     }
   }
 }
