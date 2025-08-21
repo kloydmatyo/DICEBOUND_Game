@@ -206,7 +206,11 @@ export class BossManager {
   }
 
   // Determine boss AI action
-  chooseBossAction(boss: Enemy, abilities: BossAbility[], turn: number): BossAbility | null {
+  chooseBossAction(
+    boss: Enemy,
+    abilities: BossAbility[],
+    turn: number
+  ): BossAbility | null {
     // Filter abilities that are not on cooldown
     const availableAbilities = abilities.filter((ability: BossAbility) => {
       // Simple cooldown tracking - in a real implementation, you'd track this per boss
@@ -219,12 +223,16 @@ export class BossManager {
 
     // Simple AI: prioritize healing when low health, otherwise use random ability
     if (boss.health < boss.maxHealth * 0.3) {
-      const healAbility = availableAbilities.find(a => a.type === BossAbilityType.HEAL);
+      const healAbility = availableAbilities.find(
+        (a) => a.type === BossAbilityType.HEAL
+      );
       if (healAbility) return healAbility;
     }
 
     // Use random available ability
-    return availableAbilities[Math.floor(Math.random() * availableAbilities.length)];
+    return availableAbilities[
+      Math.floor(Math.random() * availableAbilities.length)
+    ];
   }
 
   // Apply boss ability effects
@@ -238,7 +246,7 @@ export class BossManager {
           const damage = Math.max(1, ability.damage - (target.defense || 0));
           target.health = Math.max(0, target.health - damage);
           message += ` Deals ${damage} damage!`;
-          
+
           if (ability.effect) {
             this.applyStatusEffect(target, ability.effect);
             message += ` ${this.getStatusEffectMessage(ability.effect)}`;
@@ -281,43 +289,66 @@ export class BossManager {
     };
 
     // Remove existing effect of same type
-    target.statusEffects = target.statusEffects.filter(e => e.type !== effectType);
+    target.statusEffects = target.statusEffects.filter(
+      (e: StatusEffect) => e.type !== effectType
+    );
     target.statusEffects.push(statusEffect);
   }
 
   private getStatusEffectDuration(effectType: StatusEffectType): number {
     switch (effectType) {
-      case StatusEffectType.POISON: return 3;
-      case StatusEffectType.BURN: return 3;
-      case StatusEffectType.STUN: return 1;
-      case StatusEffectType.STRENGTH_BOOST: return 3;
-      case StatusEffectType.DEFENSE_BOOST: return 3;
-      case StatusEffectType.BERSERKER_RAGE: return 4;
-      default: return 2;
+      case StatusEffectType.POISON:
+        return 3;
+      case StatusEffectType.BURN:
+        return 3;
+      case StatusEffectType.STUN:
+        return 1;
+      case StatusEffectType.STRENGTH_BOOST:
+        return 3;
+      case StatusEffectType.DEFENSE_BOOST:
+        return 3;
+      case StatusEffectType.BERSERKER_RAGE:
+        return 4;
+      default:
+        return 2;
     }
   }
 
   private getStatusEffectDescription(effectType: StatusEffectType): string {
     switch (effectType) {
-      case StatusEffectType.POISON: return "Poisoned - takes damage each turn";
-      case StatusEffectType.BURN: return "Burning - takes fire damage each turn";
-      case StatusEffectType.STUN: return "Stunned - cannot act";
-      case StatusEffectType.STRENGTH_BOOST: return "Empowered - increased attack";
-      case StatusEffectType.DEFENSE_BOOST: return "Armored - increased defense";
-      case StatusEffectType.BERSERKER_RAGE: return "Enraged - increased damage and resistance";
-      default: return "Unknown effect";
+      case StatusEffectType.POISON:
+        return "Poisoned - takes damage each turn";
+      case StatusEffectType.BURN:
+        return "Burning - takes fire damage each turn";
+      case StatusEffectType.STUN:
+        return "Stunned - cannot act";
+      case StatusEffectType.STRENGTH_BOOST:
+        return "Empowered - increased attack";
+      case StatusEffectType.DEFENSE_BOOST:
+        return "Armored - increased defense";
+      case StatusEffectType.BERSERKER_RAGE:
+        return "Enraged - increased damage and resistance";
+      default:
+        return "Unknown effect";
     }
   }
 
   private getStatusEffectMessage(effectType: StatusEffectType): string {
     switch (effectType) {
-      case StatusEffectType.POISON: return "Target is poisoned!";
-      case StatusEffectType.BURN: return "Target is burning!";
-      case StatusEffectType.STUN: return "Target is stunned!";
-      case StatusEffectType.STRENGTH_BOOST: return "Attack increased!";
-      case StatusEffectType.DEFENSE_BOOST: return "Defense increased!";
-      case StatusEffectType.BERSERKER_RAGE: return "Enters berserker rage!";
-      default: return "Effect applied!";
+      case StatusEffectType.POISON:
+        return "Target is poisoned!";
+      case StatusEffectType.BURN:
+        return "Target is burning!";
+      case StatusEffectType.STUN:
+        return "Target is stunned!";
+      case StatusEffectType.STRENGTH_BOOST:
+        return "Attack increased!";
+      case StatusEffectType.DEFENSE_BOOST:
+        return "Defense increased!";
+      case StatusEffectType.BERSERKER_RAGE:
+        return "Enters berserker rage!";
+      default:
+        return "Effect applied!";
     }
   }
 }
