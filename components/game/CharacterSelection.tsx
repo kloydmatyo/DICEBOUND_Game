@@ -35,19 +35,21 @@ export default function CharacterSelection({ onSelect }: CharacterSelectionProps
   const classes = Object.entries(CLASS_STATS) as [CharacterClass, typeof CLASS_STATS[CharacterClass]][];
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-game-bg">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-8"
-      >
-        <h1 className="text-4xl md:text-5xl font-bold text-game-accent mb-2 text-shadow">
-          ⚔️ CHARACTER SELECTION ⚔️
-        </h1>
-        <p className="text-game-mana text-lg">Choose your hero wisely, adventurer!</p>
-      </motion.div>
+    <div className="min-h-screen w-full bg-game-bg overflow-y-auto">
+      <div className="w-full min-h-screen flex flex-col items-center justify-center py-8 px-3 sm:px-6">
+        <div className="w-full max-w-4xl flex flex-col items-center">
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mb-4 sm:mb-6 w-full"
+          >
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-game-accent mb-2 text-shadow px-2">
+              ⚔️ CHARACTER SELECTION ⚔️
+            </h1>
+            <p className="text-game-mana text-sm sm:text-base px-2">Choose your hero wisely, adventurer!</p>
+          </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 max-w-6xl w-full mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 w-full mb-4 sm:mb-6">
         {classes.map(([classKey, classData], index) => (
           <motion.div
             key={classKey}
@@ -65,33 +67,33 @@ export default function CharacterSelection({ onSelect }: CharacterSelectionProps
               onClick={() => setSelectedClass(classKey)}
             >
               <div className="text-center">
-                <div className="text-6xl mb-3">{classEmojis[classKey]}</div>
-                <h3 className="text-2xl font-bold text-game-gold mb-2">
+                <div className="text-4xl sm:text-6xl mb-2 sm:mb-3">{classEmojis[classKey]}</div>
+                <h3 className="text-lg sm:text-2xl font-bold text-game-gold mb-1 sm:mb-2">
                   {classData.name.toUpperCase()}
                 </h3>
-                <p className="text-gray-400 text-sm mb-4 min-h-[40px]">
+                <p className="text-gray-400 text-xs sm:text-sm mb-3 sm:mb-4 min-h-[30px] sm:min-h-[40px]">
                   {classData.description}
                 </p>
 
-                <div className="space-y-2 text-left bg-game-bg bg-opacity-50 rounded p-3">
-                  <div className="stat-display">
+                <div className="space-y-1.5 sm:space-y-2 text-left bg-game-bg bg-opacity-50 rounded p-2 sm:p-3">
+                  <div className="stat-display text-xs sm:text-base">
                     <span className="text-game-health">❤️ Health:</span>
                     <span className="font-bold">{classData.baseHealth}</span>
                   </div>
-                  <div className="stat-display">
+                  <div className="stat-display text-xs sm:text-base">
                     <span className="text-game-attack">⚔️ Attack:</span>
                     <span className="font-bold">{classData.baseAttack}</span>
                   </div>
-                  <div className="stat-display">
+                  <div className="stat-display text-xs sm:text-base">
                     <span className="text-game-defense">🛡️ Defense:</span>
                     <span className="font-bold">{classData.baseDefense}</span>
                   </div>
-                  <div className="stat-display">
+                  <div className="stat-display text-xs sm:text-base">
                     <span className="text-game-gold">💰 Coins:</span>
                     <span className="font-bold">{classData.startingCoins}</span>
                   </div>
-                  {classData.baseMana && (
-                    <div className="stat-display">
+                  {('baseMana' in classData) && classData.baseMana && (
+                    <div className="stat-display text-xs sm:text-base">
                       <span className="text-game-mana">✨ Mana:</span>
                       <span className="font-bold">{classData.baseMana}</span>
                     </div>
@@ -103,20 +105,23 @@ export default function CharacterSelection({ onSelect }: CharacterSelectionProps
         ))}
       </div>
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.6 }}
-      >
-        <Button
-          size="lg"
-          disabled={!selectedClass}
-          onClick={() => selectedClass && onSelect(selectedClass)}
-          className="text-xl px-12 py-4"
-        >
-          {selectedClass ? '🗡️ START ADVENTURE 🗡️' : 'SELECT A CLASS FIRST'}
-        </Button>
-      </motion.div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="mb-4 sm:mb-6"
+          >
+            <Button
+              size="lg"
+              disabled={!selectedClass}
+              onClick={() => selectedClass && onSelect(selectedClass)}
+              className="text-sm sm:text-base px-8 sm:px-12 py-2.5 sm:py-3"
+            >
+              {selectedClass ? '🗡️ START ADVENTURE 🗡️' : 'SELECT A CLASS FIRST'}
+            </Button>
+          </motion.div>
+        </div>
+      </div>
     </div>
   );
 }

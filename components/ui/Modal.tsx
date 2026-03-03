@@ -42,32 +42,37 @@ export default function Modal({ isOpen, onClose, title, children, className }: M
             className="fixed inset-0 bg-black bg-opacity-75 z-40"
           />
 
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className={cn(
-              'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50',
-              'bg-game-primary border-2 border-game-secondary rounded-lg shadow-2xl',
-              'w-full max-w-2xl max-h-[90vh] overflow-y-auto',
-              'p-6',
-              className
-            )}
+          {/* Modal Container - Fixed Centering */}
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ pointerEvents: 'none' }}
           >
-            {title && (
-              <div className="flex items-center justify-between mb-4 pb-4 border-b border-game-secondary">
-                <h2 className="text-2xl font-bold text-game-gold">{title}</h2>
-                <button
-                  onClick={onClose}
-                  className="text-white hover:text-game-accent transition-colors text-2xl"
-                >
-                  ×
-                </button>
-              </div>
-            )}
-            {children}
-          </motion.div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              style={{ pointerEvents: 'auto' }}
+              className={cn(
+                'bg-game-primary border-2 border-game-secondary rounded-lg shadow-2xl',
+                'w-full max-w-2xl max-h-[90vh] overflow-y-auto',
+                'p-4 sm:p-6',
+                className
+              )}
+            >
+              {title && (
+                <div className="flex items-center justify-between mb-4 pb-4 border-b border-game-secondary">
+                  <h2 className="text-2xl font-bold text-game-gold">{title}</h2>
+                  <button
+                    onClick={onClose}
+                    className="text-white hover:text-game-accent transition-colors text-2xl"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+              {children}
+            </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>

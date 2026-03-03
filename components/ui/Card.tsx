@@ -8,9 +8,9 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 const Card = forwardRef<HTMLDivElement, CardProps>(
   ({ className, variant = 'default', children, ...props }, ref) => {
     const variants = {
-      default: 'bg-game-primary rounded-lg p-6',
-      bordered: 'bg-game-primary border-2 border-game-secondary rounded-lg p-6',
-      elevated: 'bg-game-primary rounded-lg p-6 shadow-2xl',
+      default: 'bg-game-primary rounded-lg p-3 sm:p-6',
+      bordered: 'bg-game-primary border-2 border-game-secondary rounded-lg p-3 sm:p-6',
+      elevated: 'bg-game-primary rounded-lg p-3 sm:p-6 shadow-2xl',
     };
 
     return (
