@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 
 interface GameOverScreenProps {
   isVictory: boolean;
@@ -35,7 +35,7 @@ export default function GameOverScreen({
     setSubmitting(true);
     setError(null);
 
-    const { error } = await supabase.from('leaderboard').insert({
+    const { error } = await getSupabase().from('leaderboard').insert({
       nickname: nickname.trim(),
       floor_reached: floor,
       character_class: characterClass,

@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react';
 import { useStore } from '@/store';
 import {
@@ -191,6 +193,7 @@ export default function GamePage() {
   const handleUseItem = (itemId: string) => {
     if (!gameState) return;
 
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     const { player: newPlayer, message } = InventoryEngine.useItem(
       gameState.player,
       itemId
