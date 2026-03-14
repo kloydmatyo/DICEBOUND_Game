@@ -25,6 +25,22 @@ export class InventoryEngine {
         effect: { type: 'cure' },
       },
       {
+        id: ITEM_TYPES.HOLY_WATER,
+        type: ITEM_TYPES.HOLY_WATER,
+        name: 'Holy Water',
+        description: 'Removes the Curse debuff',
+        price: SHOP_PRICES.HOLY_WATER,
+        effect: { type: 'cure_curse' },
+      },
+      {
+        id: ITEM_TYPES.BLESSING,
+        type: ITEM_TYPES.BLESSING,
+        name: 'Blessing',
+        description: 'Removes Curse and restores stats',
+        price: SHOP_PRICES.BLESSING,
+        effect: { type: 'cure_curse' },
+      },
+      {
         id: ITEM_TYPES.STAT_UPGRADE,
         type: ITEM_TYPES.STAT_UPGRADE,
         name: 'Stat Upgrade',
@@ -52,8 +68,60 @@ export class InventoryEngine {
   }
 
   /**
-   * Add item to inventory
+   * Get special shop items (rare, powerful, expensive)
    */
+  static getSpecialShopItems(): Item[] {
+    return [
+      {
+        id: ITEM_TYPES.HEALING_POTION,
+        type: ITEM_TYPES.HEALING_POTION,
+        name: 'Mega Healing Potion',
+        description: 'Fully restores all HP',
+        price: 80,
+        effect: { type: 'heal', value: 9999 },
+      },
+      {
+        id: ITEM_TYPES.STAT_UPGRADE,
+        type: ITEM_TYPES.STAT_UPGRADE,
+        name: 'Warrior\'s Tome',
+        description: 'Permanently grants +10 ATK',
+        price: 120,
+        effect: { type: 'permanent', stat: 'attack', value: 10 },
+      },
+      {
+        id: ITEM_TYPES.STAT_UPGRADE,
+        type: ITEM_TYPES.STAT_UPGRADE,
+        name: 'Iron Skin Scroll',
+        description: 'Permanently grants +8 DEF',
+        price: 100,
+        effect: { type: 'permanent', stat: 'defense', value: 8 },
+      },
+      {
+        id: ITEM_TYPES.HEARTSTONE_AMULET,
+        type: ITEM_TYPES.HEARTSTONE_AMULET,
+        name: 'Titan\'s Heart',
+        description: 'Increases max HP by 50',
+        price: 150,
+        effect: { type: 'permanent', stat: 'health', value: 50 },
+      },
+      {
+        id: ITEM_TYPES.HOLY_WATER,
+        type: ITEM_TYPES.HOLY_WATER,
+        name: 'Sacred Holy Water',
+        description: 'Removes all debuffs (curse, poison, burn)',
+        price: 90,
+        effect: { type: 'cure_curse' },
+      },
+      {
+        id: ITEM_TYPES.BLESSING_SCROLL,
+        type: ITEM_TYPES.BLESSING_SCROLL,
+        name: 'Divine Blessing',
+        description: 'Grants blessed status for 10 turns',
+        price: 110,
+        effect: { type: 'buff', duration: 10 },
+      },
+    ];
+  }
   static addItem(player: Player, item: Item): Player {
     return {
       ...player,
@@ -98,6 +166,16 @@ export class InventoryEngine {
           ),
         };
         message = `Used ${item.name}! Cured all negative effects.`;
+        break;
+
+      case 'cure_curse':
+        updatedPlayer = {
+          ...player,
+          statusEffects: player.statusEffects.filter(
+            (effect) => effect.type !== 'cursed'
+          ),
+        };
+        message = `Used ${item.name}! The curse has been lifted!`;
         break;
 
       case 'buff':

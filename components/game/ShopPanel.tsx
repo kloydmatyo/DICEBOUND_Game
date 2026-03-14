@@ -13,6 +13,7 @@ interface ShopPanelProps {
   player: Player;
   items: Item[];
   onPurchase: (item: Item) => void;
+  title?: string;
 }
 
 const itemEmojis: Record<string, string> = {
@@ -29,11 +30,12 @@ export default function ShopPanel({
   player,
   items,
   onPurchase,
+  title = '🏪 Shop',
 }: ShopPanelProps) {
   const canAfford = (price: number) => player.coins >= price;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="🏪 Shop">
+    <Modal isOpen={isOpen} onClose={onClose} title={title}>
       <div className="mb-4 p-3 bg-game-bg rounded">
         <div className="flex justify-between items-center">
           <span className="text-gray-400">Your Coins:</span>

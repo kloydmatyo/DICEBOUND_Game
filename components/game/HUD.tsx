@@ -197,6 +197,7 @@ export default function HUD({ player, floor, turnCount, onInventoryClick }: HUDP
                 {effect.type === 'blessed' && '✨ Blessed'}
                 {effect.type === 'shield' && '🛡️ Shielded'}
                 {effect.type === 'regen' && '💚 Regenerating'}
+                {effect.type === 'cursed' && '💀 Cursed'}
                 <span className="ml-1 sm:ml-1.5 text-gray-400">({effect.duration})</span>
               </motion.div>
             ))}

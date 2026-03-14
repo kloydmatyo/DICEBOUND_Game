@@ -1,10 +1,11 @@
-import { CHARACTER_CLASSES, TILE_TYPES, ENEMY_TYPES, STATUS_EFFECTS, ITEM_TYPES } from './constants';
+import { CHARACTER_CLASSES, TILE_TYPES, ENEMY_TYPES, STATUS_EFFECTS, ITEM_TYPES, TRAP_TYPES } from './constants';
 
 export type CharacterClass = typeof CHARACTER_CLASSES[keyof typeof CHARACTER_CLASSES];
 export type TileType = typeof TILE_TYPES[keyof typeof TILE_TYPES];
 export type EnemyType = typeof ENEMY_TYPES[keyof typeof ENEMY_TYPES];
 export type StatusEffectType = typeof STATUS_EFFECTS[keyof typeof STATUS_EFFECTS];
 export type ItemType = typeof ITEM_TYPES[keyof typeof ITEM_TYPES];
+export type TrapType = typeof TRAP_TYPES[keyof typeof TRAP_TYPES];
 
 export interface Player {
   id: string;
@@ -41,6 +42,8 @@ export interface BoardTile {
   y: number;
   visited: boolean;
   enemy?: Enemy;
+  trapType?: TrapType;
+  trapTriggered?: boolean;
 }
 
 export interface Item {
@@ -53,7 +56,7 @@ export interface Item {
 }
 
 export interface ItemEffect {
-  type: 'heal' | 'cure' | 'buff' | 'permanent';
+  type: 'heal' | 'cure' | 'cure_curse' | 'buff' | 'permanent';
   value?: number;
   stat?: 'health' | 'attack' | 'defense';
   duration?: number;

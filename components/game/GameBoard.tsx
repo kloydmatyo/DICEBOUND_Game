@@ -17,6 +17,7 @@ const tileEmojis: Record<BoardTile['type'], string> = {
   shop: '🏪',
   event: '❓',
   boss: '💀',
+  trap: '⚠️',
 };
 
 const tileColors: Record<BoardTile['type'], string> = {
@@ -26,6 +27,7 @@ const tileColors: Record<BoardTile['type'], string> = {
   shop: 'bg-yellow-500',
   event: 'bg-blue-500',
   boss: 'bg-purple-600',
+  trap: 'bg-orange-600',
 };
 
 export default function GameBoard({ tiles, currentPosition, onTileClick }: GameBoardProps) {
@@ -141,15 +143,24 @@ export default function GameBoard({ tiles, currentPosition, onTileClick }: GameB
                   ${tileColors[tile.type]}
                   ${isCurrentPosition ? 'border-game-gold scale-110 shadow-2xl z-10' : 'border-gray-700'}
                   ${isVisited ? 'opacity-100' : 'opacity-40'}
+                  ${tile.trapTriggered ? 'opacity-30 grayscale' : ''}
                   ${onTileClick ? 'hover:scale-105' : ''}
                 `}
                 onClick={() => onTileClick?.(tile.id)}
               >
-                <span 
+                <span
                   className="drop-shadow-lg"
                   style={{ fontSize: `${Math.max(24, 32 * scale)}px` }}
                 >
-                  {tileEmojis[tile.type]}
+                  {tile.type === 'trap' && tile.trapTriggered
+                    ? '✓'
+                    : tile.type === 'trap' && tile.trapType === 'fire'
+                    ? '🔥'
+                    : tile.type === 'trap' && tile.trapType === 'spike'
+                    ? '🗡️'
+                    : tile.type === 'trap' && tile.trapType === 'poison_gas'
+                    ? '🧪'
+                    : tileEmojis[tile.type]}
                 </span>
                 
                 {/* Glow effect for current position */}

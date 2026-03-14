@@ -20,6 +20,7 @@
   "author": "Dicebound Dev Team",
   "license": "MIT",
   "dependencies": {
+    "@supabase/supabase-js": "^2.99.1",
     "clsx": "^2.1.0",
     "framer-motion": "^11.0.0",
     "next": "^14.2.0",

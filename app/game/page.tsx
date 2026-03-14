@@ -9,6 +9,7 @@ import {
   InventoryEngine,
   Item,
   CombatResult,
+  BoardTile,
 } from '@/lib/game-engine';
 import CharacterSelection from '@/components/game/CharacterSelection';
 import HUD from '@/components/game/HUD';
@@ -28,6 +29,7 @@ export default function GamePage() {
   const [lastDiceRoll, setLastDiceRoll] = useState<number | undefined>();
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isShopOpen, setIsShopOpen] = useState(false);
+  const [isSpecialShopOpen, setIsSpecialShopOpen] = useState(false);
   const [combatLog, setCombatLog] = useState<string[]>([]);
   const [notification, setNotification] = useState<string | null>(null);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
@@ -48,38 +50,94 @@ export default function GamePage() {
     setLastDiceRoll(diceValue);
     setGameState(newState);
 
-    const tile = newState.board.find((t) => t.id === newState.player.position);
-    
-    if (tile) {
-      switch (tile.type) {
-        case 'enemy':
-          setPhase('combat');
-          const combatState = GameEngine.startCombat(newState);
-          setGameState(combatState);
-          setCombatLog([`A wild ${tile.enemy?.name} appears!`]);
-          break;
-        case 'shop':
-          setIsShopOpen(true);
-          showNotification('Welcome to the shop!');
-          break;
-        case 'event':
-          handleRandomEvent();
-          break;
-        case 'boss':
-          setPhase('combat');
-          const bossState = GameEngine.startCombat(newState);
-          setGameState(bossState);
-          setCombatLog(['Boss battle begins!']);
-          break;
-        default:
-          showNotification(`Moved ${diceValue} spaces!`);
-      }
-    }
+    // Delay tile events so the dice result is visible first
+    setTimeout(() => {
+      // Apply periodic status effect damage between turns (curse + burn)
+      let stateForEvent = newState;
+      let periodicMessages: string[] = [];
 
-    // Check if floor is complete
-    if (GameEngine.isFloorComplete(newState)) {
-      handleFloorComplete(newState);
-    }
+      const updatedEffects = newState.player.statusEffects
+        .map((e) => {
+          if (e.type === 'cursed') {
+            const dmg = e.value || 8;
+            stateForEvent = {
+              ...stateForEvent,
+              player: {
+                ...stateForEvent.player,
+                health: Math.max(0, stateForEvent.player.health - dmg),
+              },
+            };
+            periodicMessages.push(`💀 Curse drains ${dmg} HP! (${e.duration - 1} turns left)`);
+          }
+          if (e.type === 'burn') {
+            const dmg = e.value || 5;
+            stateForEvent = {
+              ...stateForEvent,
+              player: {
+                ...stateForEvent.player,
+                health: Math.max(0, stateForEvent.player.health - dmg),
+              },
+            };
+            periodicMessages.push(`🔥 Burn deals ${dmg} damage! (${e.duration - 1} turns left)`);
+          }
+          return { ...e, duration: e.duration - 1 };
+        })
+        .filter((e) => e.duration > 0);
+
+      stateForEvent = {
+        ...stateForEvent,
+        player: { ...stateForEvent.player, statusEffects: updatedEffects },
+      };
+      setGameState(stateForEvent);
+
+      if (periodicMessages.length > 0) {
+        showNotification(periodicMessages.join(' | '));
+        if (stateForEvent.player.health <= 0) {
+          setTimeout(() => setPhase('game-over'), 500);
+          return;
+        }
+      }
+
+      const tile = stateForEvent.board.find((t) => t.id === stateForEvent.player.position);
+
+      if (tile) {
+        switch (tile.type) {
+          case 'enemy':
+            setPhase('combat');
+            const combatState = GameEngine.startCombat(stateForEvent);
+            setGameState(combatState);
+            setCombatLog([`A wild ${tile.enemy?.name} appears!`]);
+            break;
+          case 'shop':
+            setIsShopOpen(true);
+            showNotification('Welcome to the shop!');
+            break;
+          case 'event':
+            handleRandomEvent();
+            break;
+          case 'trap':
+            if (!tile.trapTriggered) {
+              handleTrapTrigger(stateForEvent, tile);
+            } else {
+              showNotification('An old disarmed trap... you pass safely.');
+            }
+            break;
+          case 'boss':
+            setPhase('combat');
+            const bossState = GameEngine.startCombat(stateForEvent);
+            setGameState(bossState);
+            setCombatLog(['Boss battle begins!']);
+            break;
+          default:
+            showNotification(`Moved ${diceValue} spaces!`);
+        }
+      }
+
+      // Check if floor is complete
+      if (GameEngine.isFloorComplete(stateForEvent)) {
+        handleFloorComplete(stateForEvent);
+      }
+    }, 1200);
   };
 
   // Handle combat attack
@@ -165,6 +223,61 @@ export default function GamePage() {
     showNotification(message);
   };
 
+  // Handle trap trigger
+  const handleTrapTrigger = (state: GameState, tile: BoardTile) => {
+    let newPlayer = state.player;
+    let message = '';
+
+    // Deactivate the trap on the board
+    const newBoard = state.board.map((t) =>
+      t.id === tile.id ? { ...t, trapTriggered: true } : t
+    );
+
+    switch (tile.trapType) {
+      case 'fire':
+        // Apply burn debuff (refresh if already burning)
+        const alreadyBurning = newPlayer.statusEffects.some((e) => e.type === 'burn');
+        newPlayer = {
+          ...newPlayer,
+          statusEffects: alreadyBurning
+            ? newPlayer.statusEffects.map((e) =>
+                e.type === 'burn' ? { ...e, duration: Math.max(e.duration, 4) } : e
+              )
+            : [...newPlayer.statusEffects, { type: 'burn' as const, duration: 4, value: 5 }],
+        };
+        message = '🔥 Fire Trap! You are set ablaze! Burn for 4 turns.';
+        break;
+      case 'spike':
+        // Direct damage
+        const spikeDmg = 15;
+        newPlayer = { ...newPlayer, health: Math.max(0, newPlayer.health - spikeDmg) };
+        message = `🗡️ Spike Trap! You take ${spikeDmg} direct damage!`;
+        break;
+      case 'poison_gas':
+        // Apply poison
+        const alreadyPoisoned = newPlayer.statusEffects.some((e) => e.type === 'poison');
+        newPlayer = {
+          ...newPlayer,
+          statusEffects: alreadyPoisoned
+            ? newPlayer.statusEffects.map((e) =>
+                e.type === 'poison' ? { ...e, duration: Math.max(e.duration, 3) } : e
+              )
+            : [...newPlayer.statusEffects, { type: 'poison' as const, duration: 3, value: 6 }],
+        };
+        message = '🧪 Poison Gas Trap! You inhale toxic fumes! Poisoned for 3 turns.';
+        break;
+      default:
+        message = '⚠️ You triggered a trap!';
+    }
+
+    setGameState({ ...state, player: newPlayer, board: newBoard });
+    showNotification(message);
+
+    if (newPlayer.health <= 0) {
+      setTimeout(() => setPhase('game-over'), 500);
+    }
+  };
+
   // Handle random event
   const handleRandomEvent = () => {
     if (!gameState) return;
@@ -173,6 +286,8 @@ export default function GamePage() {
       { text: 'You found a treasure chest!', coins: 20 },
       { text: 'A mysterious stranger heals you!', heal: 15 },
       { text: 'You feel stronger!', attack: 2 },
+      { text: 'A dark spirit curses you!', curse: true },
+      { text: 'A fire spirit scorches you!', burn: true },
       { text: 'Nothing happens...', },
     ];
 
@@ -190,6 +305,29 @@ export default function GamePage() {
     }
     if (event.attack) {
       newPlayer = { ...newPlayer, attack: newPlayer.attack + event.attack };
+    }
+    if (event.curse) {
+      const alreadyCursed = newPlayer.statusEffects.some((e) => e.type === 'cursed');
+      if (!alreadyCursed) {
+        newPlayer = {
+          ...newPlayer,
+          statusEffects: [
+            ...newPlayer.statusEffects,
+            { type: 'cursed' as const, duration: 5, value: 8 },
+          ],
+        };
+      }
+    }
+    if ((event as any).burn) {
+      const alreadyBurning = newPlayer.statusEffects.some((e) => e.type === 'burn');
+      newPlayer = {
+        ...newPlayer,
+        statusEffects: alreadyBurning
+          ? newPlayer.statusEffects.map((e) =>
+              e.type === 'burn' ? { ...e, duration: Math.max(e.duration, 3) } : e
+            )
+          : [...newPlayer.statusEffects, { type: 'burn' as const, duration: 3, value: 5 }],
+      };
     }
 
     setGameState({ ...gameState, player: newPlayer });
@@ -337,6 +475,16 @@ export default function GamePage() {
         onPurchase={handlePurchase}
       />
 
+      {/* Special Shop Panel */}
+      <ShopPanel
+        isOpen={isSpecialShopOpen}
+        onClose={() => setIsSpecialShopOpen(false)}
+        player={gameState.player}
+        items={InventoryEngine.getSpecialShopItems()}
+        onPurchase={handlePurchase}
+        title="✨ Special Shop"
+      />
+
       {/* Game Over Screen */}
       <AnimatePresence>
         {phase === 'game-over' && (
@@ -345,6 +493,7 @@ export default function GamePage() {
             floor={gameState.currentFloor}
             turns={gameState.turnCount}
             coinsEarned={gameState.player.coins}
+            characterClass={gameState.player.class}
             onRestart={handleRestart}
             onMainMenu={handleMainMenu}
           />
@@ -405,6 +554,12 @@ export default function GamePage() {
                 🏪 Open Shop
               </button>
               <button
+                onClick={() => setIsSpecialShopOpen(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded text-xs font-bold"
+              >
+                ✨ Special Shop
+              </button>
+              <button
                 onClick={debugNextFloor}
                 className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded text-xs font-bold"
               >
@@ -415,6 +570,51 @@ export default function GamePage() {
                 className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded text-xs font-bold"
               >
                 🏆 Win Position
+              </button>
+              <button
+                onClick={handleRandomEvent}
+                className="bg-pink-600 hover:bg-pink-700 text-white px-3 py-2 rounded text-xs font-bold"
+              >
+                ✨ Trigger Event
+              </button>
+              <button
+                onClick={() => {
+                  if (!gameState) return;
+                  const trapTypes = ['fire', 'spike', 'poison_gas'] as const;
+                  const randomTrap = trapTypes[Math.floor(Math.random() * trapTypes.length)];
+                  const fakeTile = { id: gameState.player.position, type: 'trap' as const, x: 0, y: 0, visited: true, trapType: randomTrap, trapTriggered: false };
+                  handleTrapTrigger(gameState, fakeTile);
+                }}
+                className="bg-red-700 hover:bg-red-800 text-white px-3 py-2 rounded text-xs font-bold"
+              >
+                🎲 Random Trap
+              </button>
+              <button
+                onClick={() => {
+                  if (!gameState) return;
+                  handleTrapTrigger(gameState, { id: gameState.player.position, type: 'trap', x: 0, y: 0, visited: true, trapType: 'fire', trapTriggered: false });
+                }}
+                className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded text-xs font-bold"
+              >
+                🔥 Fire Trap
+              </button>
+              <button
+                onClick={() => {
+                  if (!gameState) return;
+                  handleTrapTrigger(gameState, { id: gameState.player.position, type: 'trap', x: 0, y: 0, visited: true, trapType: 'spike', trapTriggered: false });
+                }}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded text-xs font-bold"
+              >
+                🗡️ Spike Trap
+              </button>
+              <button
+                onClick={() => {
+                  if (!gameState) return;
+                  handleTrapTrigger(gameState, { id: gameState.player.position, type: 'trap', x: 0, y: 0, visited: true, trapType: 'poison_gas', trapTriggered: false });
+                }}
+                className="bg-green-700 hover:bg-green-800 text-white px-3 py-2 rounded text-xs font-bold"
+              >
+                🧪 Poison Trap
               </button>
             </div>
           </motion.div>

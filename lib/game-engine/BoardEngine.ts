@@ -1,5 +1,5 @@
-import { BoardTile, Enemy } from './types';
-import { TILE_TYPES, GAME_CONFIG } from './constants';
+import { BoardTile, Enemy, TrapType } from './types';
+import { TILE_TYPES, TRAP_TYPES, GAME_CONFIG } from './constants';
 import { EnemyEngine } from './EnemyEngine';
 import { randomInt } from '@/lib/utils';
 
@@ -38,14 +38,19 @@ export class BoardEngine {
       // Random distribution of other tiles
       else {
         const rand = Math.random();
-        if (rand < 0.5) {
+        if (rand < 0.45) {
           type = TILE_TYPES.ENEMY;
-        } else if (rand < 0.7) {
+        } else if (rand < 0.6) {
           type = TILE_TYPES.NORMAL;
-        } else {
+        } else if (rand < 0.75) {
           type = TILE_TYPES.EVENT;
+        } else {
+          type = TILE_TYPES.TRAP;
         }
       }
+
+      const trapTypes = Object.values(TRAP_TYPES) as TrapType[];
+      const randomTrap = trapTypes[Math.floor(Math.random() * trapTypes.length)];
 
       tiles.push({
         id: i,
@@ -55,6 +60,10 @@ export class BoardEngine {
         visited: i === 0,
         ...(type === TILE_TYPES.ENEMY && {
           enemy: EnemyEngine.generateEnemy(floor),
+        }),
+        ...(type === TILE_TYPES.TRAP && {
+          trapType: randomTrap,
+          trapTriggered: false,
         }),
       });
     }
@@ -75,6 +84,15 @@ export class BoardEngine {
   static visitTile(board: BoardTile[], position: number): BoardTile[] {
     return board.map((tile) =>
       tile.id === position ? { ...tile, visited: true } : tile
+    );
+  }
+
+  /**
+   * Mark trap as triggered (deactivates it)
+   */
+  static triggerTrap(board: BoardTile[], position: number): BoardTile[] {
+    return board.map((tile) =>
+      tile.id === position ? { ...tile, trapTriggered: true } : tile
     );
   }
 

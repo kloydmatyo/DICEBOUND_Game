@@ -11,13 +11,20 @@ export class CombatEngine {
     let playerDamage = 0;
     let enemyDamage = 0;
 
+    // Apply curse penalty to attack
+    const isCursed = player.statusEffects.some((e) => e.type === 'cursed');
+    const effectiveAttack = isCursed ? Math.max(1, Math.floor(player.attack * 0.6)) : player.attack;
+    const effectiveDefense = isCursed ? Math.max(0, Math.floor(player.defense * 0.6)) : player.defense;
+    if (isCursed) messages.push('💀 Curse weakens you! (-40% ATK & DEF)');
+
     // Player attacks
     if (useSkill && useSkill.type === 'active' && useSkill.currentCooldown === 0) {
-      const skillResult = this.useSkill(player, enemy, useSkill);
+      const cursedPlayer = { ...player, attack: effectiveAttack };
+      const skillResult = this.useSkill(cursedPlayer, enemy, useSkill);
       playerDamage = skillResult.damage;
       messages.push(...skillResult.messages);
     } else {
-      playerDamage = this.calculateDamage(player.attack, enemy.defense);
+      playerDamage = this.calculateDamage(effectiveAttack, enemy.defense);
       messages.push(`You attack for ${playerDamage} damage!`);
     }
 
@@ -27,7 +34,7 @@ export class CombatEngine {
 
     // Enemy attacks back if still alive
     if (!isEnemyDefeated) {
-      enemyDamage = this.calculateDamage(enemy.attack, player.defense);
+      enemyDamage = this.calculateDamage(enemy.attack, effectiveDefense);
       messages.push(`${enemy.name} attacks for ${enemyDamage} damage!`);
     }
 
@@ -121,6 +128,12 @@ export class CombatEngine {
           const burnDamage = effect.value || 3;
           totalDamage += burnDamage;
           messages.push(`Burn deals ${burnDamage} damage!`);
+          break;
+
+        case 'cursed':
+          const curseDamage = effect.value || 8;
+          totalDamage += curseDamage;
+          messages.push(`💀 Curse drains ${curseDamage} HP!`);
           break;
 
         case 'regen':

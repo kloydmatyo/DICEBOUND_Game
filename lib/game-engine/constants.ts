@@ -77,6 +77,14 @@ export const TILE_TYPES = {
   SHOP: 'shop',
   EVENT: 'event',
   BOSS: 'boss',
+  TRAP: 'trap',
+} as const;
+
+// Trap Types
+export const TRAP_TYPES = {
+  FIRE: 'fire',
+  SPIKE: 'spike',
+  POISON_GAS: 'poison_gas',
 } as const;
 
 // Enemy Types
@@ -127,6 +135,7 @@ export const STATUS_EFFECTS = {
   SHIELD: 'shield',
   REGEN: 'regen',
   BLESSED: 'blessed',
+  CURSED: 'cursed',
 } as const;
 
 // Item Types
@@ -136,6 +145,8 @@ export const ITEM_TYPES = {
   STAT_UPGRADE: 'stat_upgrade',
   BLESSING_SCROLL: 'blessing_scroll',
   HEARTSTONE_AMULET: 'heartstone_amulet',
+  HOLY_WATER: 'holy_water',
+  BLESSING: 'blessing',
 } as const;
 
 // Shop Prices
@@ -145,4 +156,6 @@ export const SHOP_PRICES = {
   STAT_UPGRADE: 50,
   BLESSING_SCROLL: 75,
   HEARTSTONE_AMULET: 50,
+  HOLY_WATER: 30,
+  BLESSING: 40,
 } as const;
