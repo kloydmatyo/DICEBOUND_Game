@@ -30,7 +30,7 @@
     "zustand": "^4.5.0"
   },
   "overrides": {
-    "caniuse-lite": "1.0.30001778"
+    "caniuse-lite": "latest"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
