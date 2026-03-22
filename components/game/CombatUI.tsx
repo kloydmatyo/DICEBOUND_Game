@@ -59,6 +59,9 @@ export default function CombatUI({
   const enemyHealthPercent = (enemy.health / enemy.maxHealth) * 100;
   const playerHealthPercent = (player.health / player.maxHealth) * 100;
 
+  const isAnimating = enemyAnimState !== 'Idle';
+  const actionsDisabled = !isPlayerTurn || isAnimating;
+
   const activeSkills = player.skills.filter(
     (skill) => skill.type === 'active' && skill.currentCooldown === 0
   );
@@ -149,7 +152,7 @@ export default function CombatUI({
             <div className="grid grid-cols-2 gap-3">
               <Button
                 onClick={onAttack}
-                disabled={!isPlayerTurn}
+                disabled={actionsDisabled}
                 size="lg"
                 className="w-full"
               >
@@ -158,7 +161,7 @@ export default function CombatUI({
               {onFlee && (
                 <Button
                   onClick={onFlee}
-                  disabled={!isPlayerTurn}
+                  disabled={actionsDisabled}
                   variant="secondary"
                   size="lg"
                   className="w-full"
@@ -177,7 +180,7 @@ export default function CombatUI({
                     <Button
                       key={skill.id}
                       onClick={() => onUseSkill(skill.id)}
-                      disabled={!isPlayerTurn || skill.currentCooldown > 0}
+                      disabled={actionsDisabled || skill.currentCooldown > 0}
                       variant="secondary"
                       size="sm"
                       className="w-full text-xs"
