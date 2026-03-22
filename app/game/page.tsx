@@ -1,7 +1,5 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
 import { useState, useEffect } from 'react';
 import { useStore } from '@/store';
 import {
@@ -164,7 +162,8 @@ export default function GamePage() {
     }
 
     if (result.isEnemyDefeated) {
-      // Hurt → Death
+      // Hurt → Death, freeze HP at 0
+      setCombatEnemy(prev => prev ? { ...prev, health: 0 } : prev);
       setTimeout(() => setEnemyAnimState('Death'), hurtDuration + reactionGap);
       setTimeout(() => {
         setEnemyAnimState('Idle');
@@ -498,7 +497,7 @@ export default function GamePage() {
         {phase === 'combat' && combatEnemy && (
           <CombatUI
             player={gameState.player}
-            enemy={combatEnemy}
+            enemy={gameState.currentEnemy ?? combatEnemy!}
             onAttack={handleAttack}
             onUseSkill={handleUseSkill}
             combatLog={combatLog}
