@@ -29,6 +29,9 @@
     "tailwind-merge": "^2.2.0",
     "zustand": "^4.5.0"
   },
+  "overrides": {
+    "caniuse-lite": "1.0.30001679"
+  },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/react": "^18.3.0",
