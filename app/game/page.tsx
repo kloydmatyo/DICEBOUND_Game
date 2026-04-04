@@ -12,6 +12,8 @@ import {
   BoardTile,
   EnemyEngine,
   Enemy,
+  getStatUpgradeItems,
+  incrementStatCount,
 } from '@/lib/game-engine';
 import { ENEMY_TYPES, ENEMY_SPRITES, WEAPON_UPGRADES } from '@/lib/game-engine/constants';
 import { WeaponUpgradeEngine } from '@/lib/game-engine/WeaponUpgradeEngine';
@@ -33,6 +35,8 @@ export default function GamePage() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [phase, setPhase] = useState<GamePhase>('character-selection');
   const [lastDiceRoll, setLastDiceRoll] = useState<number | undefined>();
+  const [displayPosition, setDisplayPosition] = useState(0);
+  const [isWalking, setIsWalking] = useState(false);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isShopOpen, setIsShopOpen] = useState(false);
   const [isSpecialShopOpen, setIsSpecialShopOpen] = useState(false);
@@ -50,31 +54,48 @@ export default function GamePage() {
     const newGameState = GameEngine.initializeGame(characterClass);
     setGameState(newGameState);
     setUpgradeState(WeaponUpgradeEngine.createInitialState());
+    setDisplayPosition(0);
     setPhase('playing');
     showNotification(`Welcome, ${characterClass}! Your adventure begins...`);
   };
 
   // Roll dice and move player
   const handleDiceRoll = () => {
-    if (!gameState) return;
+    if (!gameState || isWalking) return;
 
     const { state: newState, diceValue, lapped } = GameEngine.rollDice(gameState);
     setLastDiceRoll(diceValue);
+    setIsWalking(true);
 
     if (lapped) {
       showNotification('🔀 The board has reshuffled — new dangers await!');
       // On non-boss floors, completing a lap advances the floor
       const hasBoss = gameState.board.some((t) => t.type === 'boss');
       if (!hasBoss) {
-        // Delay so the reshuffle notification shows first
         setTimeout(() => handleFloorComplete(newState), 1400);
         setGameState(newState);
+        setDisplayPosition(newState.player.position);
+        setIsWalking(false);
         return;
       }
     }
 
-    // Delay tile events so the dice result is visible first
+    // Step the token tile-by-tile before processing the landing tile
+    const boardSize = gameState.board.length;
+    const startPos = gameState.player.position;
+    const STEP_MS = 200; // ms per tile step
+
+    for (let step = 1; step <= diceValue; step++) {
+      const stepPos = (startPos + step) % boardSize;
+      setTimeout(() => {
+        setDisplayPosition(stepPos);
+      }, step * STEP_MS);
+    }
+
+    // After all steps complete, apply game logic
     setTimeout(() => {
+      setIsWalking(false);
+
       // --- Status effect tick (curse, burn, poison) ---
       let stateForEvent = newState;
       const periodicMessages: string[] = [];
@@ -118,7 +139,6 @@ export default function GamePage() {
         showNotification(periodicMessages.join(' | '));
       }
 
-      // Check death from status effects before processing tile
       if (stateForEvent.player.health <= 0) {
         setGameState(stateForEvent);
         setTimeout(() => setPhase('game-over'), 500);
@@ -136,7 +156,7 @@ export default function GamePage() {
             setPhase('combat');
             setCombatEnemy(combatState.currentEnemy);
             setCombatLog([`A wild ${tile.enemy?.name} appears!`]);
-            return; // floor-complete check happens after combat ends
+            return;
           }
           case 'shop':
             setGameState(stateForEvent);
@@ -144,7 +164,6 @@ export default function GamePage() {
             showNotification('Welcome to the shop!');
             break;
           case 'event':
-            // handleRandomEvent reads from gameState so sync first
             setGameState(stateForEvent);
             handleRandomEventWith(stateForEvent);
             return;
@@ -172,11 +191,10 @@ export default function GamePage() {
         setGameState(stateForEvent);
       }
 
-      // --- Floor completion check (non-combat tiles only) ---
       if (GameEngine.isFloorComplete(stateForEvent)) {
         handleFloorComplete(stateForEvent);
       }
-    }, 1200);
+    }, diceValue * STEP_MS + 150);
   };
 
   // Single source of truth for all combat animation sequencing
@@ -235,7 +253,7 @@ export default function GamePage() {
   const handleAttack = () => {
     if (!gameState || !gameState.currentEnemy) return;
 
-    const { state: newState, result } = GameEngine.executeCombatTurn(gameState);
+    const { state: newState, result } = GameEngine.executeCombatTurn(gameState, undefined, upgradeState);
     setGameState(newState);
     setCombatLog((prev) => [...prev, ...result.messages]);
     triggerCombatAnimations(gameState.currentEnemy.type, result);
@@ -249,13 +267,35 @@ export default function GamePage() {
   const handleUseSkill = (skillId: string) => {
     if (!gameState || !gameState.currentEnemy) return;
 
-    const { state: newState, result } = GameEngine.executeCombatTurn(gameState, skillId);
+    const { state: newState, result } = GameEngine.executeCombatTurn(gameState, skillId, upgradeState);
     setGameState(newState);
     setCombatLog((prev) => [...prev, ...result.messages]);
     triggerCombatAnimations(gameState.currentEnemy.type, result);
 
     if (GameEngine.isGameOver(newState)) {
       setTimeout(() => setPhase('game-over'), 1500);
+    }
+  };
+
+  // Handle flee from combat — 50% success chance, costs 10% max HP on failure
+  const handleFlee = () => {
+    if (!gameState || !gameState.currentEnemy) return;
+    const success = Math.random() < 0.5;
+    if (success) {
+      const newState = GameEngine.endCombat(gameState);
+      setGameState(newState);
+      setPhase('playing');
+      setCombatLog([]);
+      setCombatEnemy(null);
+      showNotification('🏃 You fled successfully!');
+    } else {
+      const penalty = Math.floor(gameState.player.maxHealth * 0.1);
+      const newHealth = Math.max(1, gameState.player.health - penalty);
+      const newState = { ...gameState, player: { ...gameState.player, health: newHealth } };
+      setGameState(newState);
+      setCombatLog((prev) => [...prev, `Failed to flee! Lost ${penalty} HP.`]);
+      showNotification(`🏃 Flee failed! Lost ${penalty} HP.`);
+      if (newHealth <= 0) setTimeout(() => setPhase('game-over'), 1000);
     }
   };
 
@@ -287,10 +327,13 @@ export default function GamePage() {
     );
 
     if (success) {
-      setGameState({
-        ...gameState,
-        player: newPlayer,
-      });
+      // If it's a scaling stat upgrade, increment the count
+      const newCounts =
+        item.effect.type === 'permanent' && item.effect.stat
+          ? incrementStatCount(gameState.statUpgradeCounts, item.effect.stat)
+          : gameState.statUpgradeCounts;
+
+      setGameState({ ...gameState, player: newPlayer, statUpgradeCounts: newCounts });
     }
 
     showNotification(message);
@@ -595,6 +638,7 @@ export default function GamePage() {
           <GameBoard
             tiles={gameState.board}
             currentPosition={gameState.player.position}
+            displayPosition={displayPosition}
           />
         </div>
       </div>
@@ -604,7 +648,7 @@ export default function GamePage() {
         <DiceRoller
           onRoll={handleDiceRoll}
           lastRoll={lastDiceRoll}
-          disabled={false}
+          disabled={isWalking}
         />
       )}
 
@@ -616,6 +660,7 @@ export default function GamePage() {
             enemy={gameState.currentEnemy ?? combatEnemy!}
             onAttack={handleAttack}
             onUseSkill={handleUseSkill}
+            onFlee={handleFlee}
             combatLog={combatLog}
             isPlayerTurn={true}
             enemyAnimState={enemyAnimState}
@@ -637,8 +682,9 @@ export default function GamePage() {
         isOpen={isShopOpen}
         onClose={() => setIsShopOpen(false)}
         player={gameState.player}
-        items={InventoryEngine.getShopItems()}
+        items={[...InventoryEngine.getShopItems().filter(i => i.effect.type !== 'permanent'), ...getStatUpgradeItems(gameState.statUpgradeCounts)]}
         onPurchase={handlePurchase}
+        statUpgradeCounts={gameState.statUpgradeCounts}
       />
 
       {/* Special Shop Panel */}
@@ -646,9 +692,10 @@ export default function GamePage() {
         isOpen={isSpecialShopOpen}
         onClose={() => setIsSpecialShopOpen(false)}
         player={gameState.player}
-        items={InventoryEngine.getSpecialShopItems()}
+        items={[...InventoryEngine.getSpecialShopItems().filter(i => i.effect.type !== 'permanent'), ...getStatUpgradeItems(gameState.statUpgradeCounts)]}
         onPurchase={handlePurchase}
         title="✨ Special Shop"
+        statUpgradeCounts={gameState.statUpgradeCounts}
       />
 
       {/* Weapon Upgrade Panel */}
@@ -693,14 +740,17 @@ export default function GamePage() {
       </AnimatePresence>
 
       {/* Debug Panel Toggle Button */}
+      {process.env.NODE_ENV === 'development' && (
       <button
         onClick={() => setShowDebugPanel(!showDebugPanel)}
         className="fixed top-20 right-2 sm:right-4 z-50 bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-lg"
       >
         🐛 Debug
       </button>
+      )}
 
       {/* Debug Panel */}
+      {process.env.NODE_ENV === 'development' && (
       <AnimatePresence>
         {showDebugPanel && (
           <motion.div
@@ -749,6 +799,19 @@ export default function GamePage() {
               </button>
               <div className="border-t border-purple-400 pt-2 mt-1">
                 <p className="text-purple-300 text-xs mb-2 font-bold">⚔️ Fight Enemy</p>
+                <button
+                  onClick={() => {
+                    if (!gameState) return;
+                    const boss = EnemyEngine.createBoss(gameState.currentFloor);
+                    setGameState({ ...gameState, isInCombat: true, currentEnemy: boss });
+                    setPhase('combat');
+                    setCombatEnemy(boss);
+                    setCombatLog([`💀 [DEBUG] ${boss.name} emerges!`]);
+                  }}
+                  className="w-full bg-yellow-800 hover:bg-yellow-700 text-white px-3 py-1.5 rounded text-xs font-bold mb-2 border border-yellow-500"
+                >
+                  💀 Fight Boss (F{gameState?.currentFloor})
+                </button>
                 {Object.entries(ENEMY_TYPES).map(([key, type]) => (
                   <button
                     key={type}
@@ -845,6 +908,7 @@ export default function GamePage() {
           </motion.div>
         )}
       </AnimatePresence>
+      )}
     </div>
   );
 }

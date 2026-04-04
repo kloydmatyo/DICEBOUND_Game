@@ -2,8 +2,6 @@
 
 import { Player, Enemy } from '@/lib/game-engine';
 import { motion, AnimatePresence } from 'framer-motion';
-import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
 import { ENEMY_SPRITES } from '@/lib/game-engine/constants';
 import SpriteAnimator from '@/components/game/SpriteAnimator';
 
@@ -11,7 +9,7 @@ export type EnemyAnimState = 'Idle' | 'Hurt' | 'Attack' | 'Death';
 
 function EnemySprite({ enemy, animState }: { enemy: Enemy; animState: EnemyAnimState }) {
   const sprite = ENEMY_SPRITES[enemy.type];
-  if (!sprite) return <div className="text-6xl mb-3">👹</div>;
+  if (!sprite) return <div className="text-7xl drop-shadow-lg select-none">👹</div>;
 
   const frameCount = sprite.frames[animState] ?? sprite.frames['Idle'] ?? 3;
   const fps = animState === 'Idle' ? 4 : 8;
@@ -26,12 +24,32 @@ function EnemySprite({ enemy, animState }: { enemy: Enemy; animState: EnemyAnimS
       frameCount={frameCount}
       fps={fps}
       loop={animState !== 'Death'}
-      scale={2}
-      className="mx-auto mb-3"
+      scale={4}
+      className="drop-shadow-[0_0_16px_rgba(255,80,80,0.7)]"
     />
   );
 }
 
+function HealthBar({ current, max, color }: { current: number; max: number; color: string }) {
+  const pct = Math.max(0, (current / max) * 100);
+  return (
+    <div className="w-full">
+      <div className="flex justify-between text-xs font-bold mb-1">
+        <span className="text-white/60 uppercase tracking-widest">HP</span>
+        <span className="text-white font-mono">
+          {current}<span className="text-white/40">/{max}</span>
+        </span>
+      </div>
+      <div className="h-3 bg-black/60 rounded-full overflow-hidden border border-white/10">
+        <motion.div
+          className={`h-full rounded-full ${color}`}
+          animate={{ width: `${pct}%` }}
+          transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+        />
+      </div>
+    </div>
+  );
+}
 
 interface CombatUIProps {
   player: Player;
@@ -56,144 +74,189 @@ export default function CombatUI({
   enemyAnimState = 'Idle',
   playerHurt = false,
 }: CombatUIProps) {
-  const enemyHealthPercent = (enemy.health / enemy.maxHealth) * 100;
-  const playerHealthPercent = (player.health / player.maxHealth) * 100;
-
   const isAnimating = enemyAnimState !== 'Idle';
   const actionsDisabled = !isPlayerTurn || isAnimating;
-
-  const activeSkills = player.skills.filter(
-    (skill) => skill.type === 'active' && skill.currentCooldown === 0
-  );
+  const activeSkills = player.skills.filter(s => s.type === 'active');
 
   return (
-    <div className="fixed inset-0 z-40 bg-black bg-opacity-90 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-40 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.65)' }}>
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-4xl"
+        initial={{ opacity: 0, scale: 0.93, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+        className="relative w-full max-w-5xl rounded-2xl overflow-hidden shadow-[0_12px_80px_rgba(0,0,0,0.9)] flex flex-col"
       >
-        <Card variant="elevated" className="p-6">
-          {/* Title */}
-          <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-game-accent mb-2">
+
+        {/* ── STAGE: arena background with characters on platforms ── */}
+        <div
+          className="relative w-full overflow-hidden"
+          style={{ height: '450px' }}
+        >
+          {/* Arena background — positioned so platforms are in the lower half */}
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: 'url(/background/Arena_BG.png)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center 40%',
+            }}
+          />
+
+          {/* Subtle top-to-transparent gradient so it blends into the UI panel below */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80" />
+
+          {/* COMBAT title overlay */}
+          <div className="absolute top-4 left-0 right-0 text-center z-10">
+            <h2 className="text-3xl font-extrabold tracking-[0.25em] text-white drop-shadow-[0_2px_12px_rgba(0,0,0,1)]">
               ⚔️ COMBAT ⚔️
             </h2>
-            <p className="text-gray-400">
-              {isPlayerTurn ? 'Your Turn!' : 'Enemy Turn...'}
+            <p className={`text-xs font-bold tracking-[0.3em] mt-1 drop-shadow-[0_1px_6px_rgba(0,0,0,1)] ${isPlayerTurn ? 'text-yellow-300' : 'text-red-400'}`}>
+              {isPlayerTurn ? '— YOUR TURN —' : '— ENEMY TURN —'}
             </p>
           </div>
 
-          {/* Combatants */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            {/* Player */}
-            <div className="text-center">
-              <div className={`text-6xl mb-3 transition-all duration-100 ${playerHurt ? 'brightness-200 hue-rotate-180' : ''}`}>🛡️</div>
-              <h3 className="text-xl font-bold text-game-gold mb-2">
+          {/* ── Left platform: Player ── */}
+          <div
+            className="absolute z-10 flex flex-col items-center"
+            style={{ left: '30%', bottom: '18%', transform: 'translateX(-50%)' }}
+          >
+            <motion.div
+              animate={playerHurt
+                ? { x: [-8, 8, -5, 5, 0], filter: ['brightness(3) saturate(0)', 'brightness(1) saturate(1)'] }
+                : {}}
+              transition={{ duration: 0.35 }}
+              className="text-7xl drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)] select-none"
+            >
+              🛡️
+            </motion.div>
+            <span className="mt-1 text-xs font-extrabold tracking-widest text-yellow-300 drop-shadow-[0_1px_6px_rgba(0,0,0,1)]">
+              {player.class.toUpperCase()}
+            </span>
+          </div>
+
+          {/* ── Right platform: Enemy ── */}
+          <div
+            className="absolute z-10 flex flex-col items-center"
+            style={{ left: '72%', bottom: '2%', transform: 'translateX(-50%)' }}
+          >
+            <EnemySprite enemy={enemy} animState={enemyAnimState} />
+            <span className="mt-1 text-xs font-extrabold tracking-widest text-red-400 drop-shadow-[0_1px_6px_rgba(0,0,0,1)]">
+              {enemy.name.toUpperCase()}
+            </span>
+          </div>
+        </div>
+
+        {/* ── UI PANEL: HP bars, log, actions ── */}
+        <div className="bg-[#0f1220] border-t border-white/10 px-8 py-5 flex flex-col gap-4">
+
+          {/* HP bars side by side */}
+          <div className="grid grid-cols-2 gap-6">
+            {/* Player HP */}
+            <div className="bg-white/5 rounded-xl px-4 py-3 border border-white/10">
+              <p className="text-yellow-300 font-extrabold text-xs tracking-widest mb-2">
                 {player.class.toUpperCase()}
-              </h3>
-              <div className="bg-game-bg rounded p-3">
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-game-health">HP</span>
-                  <span className="text-white">
-                    {player.health}/{player.maxHealth}
-                  </span>
+              </p>
+              <HealthBar current={player.health} max={player.maxHealth} color="bg-emerald-500" />
+              {player.class === 'mage' && player.maxMana !== undefined && (
+                <div className="mt-2">
+                  <div className="flex justify-between text-xs font-bold mb-1">
+                    <span className="text-blue-300/60 uppercase tracking-widest">MP</span>
+                    <span className="text-blue-200 font-mono">
+                      {player.mana ?? 0}<span className="text-white/40">/{player.maxMana}</span>
+                    </span>
+                  </div>
+                  <div className="h-2 bg-black/60 rounded-full overflow-hidden border border-white/10">
+                    <motion.div
+                      className="h-full rounded-full bg-blue-500"
+                      animate={{ width: `${Math.max(0, ((player.mana ?? 0) / player.maxMana) * 100)}%` }}
+                      transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+                    />
+                  </div>
                 </div>
-                <div className="h-4 bg-gray-700 rounded-full overflow-hidden">
-                  <motion.div
-                    className="h-full bg-game-health rounded-full"
-                    animate={{ width: `${playerHealthPercent}%` }}
-                  />
+              )}
+              {player.statusEffects.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {player.statusEffects.map((e, i) => (
+                    <span key={i} className="text-[10px] bg-black/40 border border-white/15 rounded px-1.5 py-0.5 text-white/70">
+                      {e.type === 'burn' ? '🔥' : e.type === 'poison' ? '🧪' : e.type === 'cursed' ? '💀' : e.type === 'blessed' ? '✨' : '⚡'}
+                      {' '}{e.type} {e.duration}t
+                    </span>
+                  ))}
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Enemy */}
-            <div className="text-center">
-              <EnemySprite enemy={enemy} animState={enemyAnimState} />
-              <h3 className="text-xl font-bold text-game-accent mb-2">
+            {/* Enemy HP */}
+            <div className="bg-white/5 rounded-xl px-4 py-3 border border-white/10">
+              <p className="text-red-400 font-extrabold text-xs tracking-widest mb-2">
                 {enemy.name.toUpperCase()}
-              </h3>
-              <div className="bg-game-bg rounded p-3">
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-game-health">HP</span>
-                  <span className="text-white">
-                    {enemy.health}/{enemy.maxHealth}
-                  </span>
-                </div>
-                <div className="h-4 bg-gray-700 rounded-full overflow-hidden">
-                  <motion.div
-                    className="h-full bg-red-600 rounded-full"
-                    animate={{ width: `${enemyHealthPercent}%` }}
-                  />
-                </div>
-              </div>
+              </p>
+              <HealthBar current={enemy.health} max={enemy.maxHealth} color="bg-red-500" />
             </div>
           </div>
 
-          {/* Combat Log */}
-          <div className="bg-game-bg rounded p-4 mb-6 h-32 overflow-y-auto">
-            <AnimatePresence>
-              {combatLog.slice(-5).map((message, index) => (
-                <motion.div
-                  key={`${message}-${index}`}
-                  initial={{ opacity: 0, x: -20 }}
+          {/* Combat log */}
+          <div className="bg-black/40 rounded-xl border border-white/10 px-4 py-3 h-24 overflow-y-auto">
+            <AnimatePresence initial={false}>
+              {combatLog.slice(-6).map((msg, i) => (
+                <motion.p
+                  key={`${msg}-${i}`}
+                  initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="text-game-mana text-sm mb-1"
+                  className="text-xs text-white/75 leading-5"
                 >
-                  → {message}
-                </motion.div>
+                  <span className="text-yellow-400 mr-1">›</span>{msg}
+                </motion.p>
               ))}
             </AnimatePresence>
           </div>
 
           {/* Actions */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <Button
+          <div className="flex flex-col gap-3">
+            <div className="flex gap-3">
+              <button
                 onClick={onAttack}
                 disabled={actionsDisabled}
-                size="lg"
-                className="w-full"
+                className="flex-1 py-3 rounded-xl font-extrabold text-base tracking-wider bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-lg transition-all active:scale-95"
               >
                 ⚔️ Attack
-              </Button>
+              </button>
               {onFlee && (
-                <Button
+                <button
                   onClick={onFlee}
                   disabled={actionsDisabled}
-                  variant="secondary"
-                  size="lg"
-                  className="w-full"
+                  className="px-6 py-3 rounded-xl font-bold text-sm bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white border border-white/20 transition-all active:scale-95"
                 >
                   🏃 Flee
-                </Button>
+                </button>
               )}
             </div>
 
-            {/* Skills */}
             {activeSkills.length > 0 && (
               <div>
-                <h4 className="text-game-gold font-bold mb-2">⚡ Skills</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <p className="text-[10px] text-yellow-300 font-bold tracking-[0.25em] mb-2">⚡ SKILLS</p>
+                <div className="grid grid-cols-3 gap-2">
                   {activeSkills.map((skill) => (
-                    <Button
+                    <button
                       key={skill.id}
                       onClick={() => onUseSkill(skill.id)}
                       disabled={actionsDisabled || skill.currentCooldown > 0}
-                      variant="secondary"
-                      size="sm"
-                      className="w-full text-xs"
+                      title={skill.description}
+                      className="py-2 px-3 rounded-lg text-xs font-bold bg-white/8 hover:bg-yellow-500/25 border border-white/15 hover:border-yellow-400/60 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-all active:scale-95 truncate"
                     >
                       {skill.name}
-                      {skill.currentCooldown > 0 && ` (${skill.currentCooldown})`}
-                    </Button>
+                      {skill.currentCooldown > 0 && (
+                        <span className="ml-1 text-red-400">({skill.currentCooldown})</span>
+                      )}
+                    </button>
                   ))}
                 </div>
               </div>
             )}
           </div>
-        </Card>
+
+        </div>
       </motion.div>
     </div>
   );

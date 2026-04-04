@@ -1,9 +1,10 @@
-import { GameState, Player, CharacterClass, CombatResult } from './types';
+import { GameState, Player, CharacterClass, CombatResult, WeaponUpgradeState } from './types';
 import { CharacterEngine } from './CharacterEngine';
 import { BoardEngine } from './BoardEngine';
 import { CombatEngine } from './CombatEngine';
 import { EnemyEngine } from './EnemyEngine';
 import { GAME_CONFIG } from './constants';
+import { createInitialStatCounts } from './StatUpgradeEngine';
 import { randomInt } from '@/lib/utils';
 
 /**
@@ -24,6 +25,7 @@ export class GameEngine {
       turnCount: 0,
       isInCombat: false,
       currentEnemy: null,
+      statUpgradeCounts: createInitialStatCounts(),
     };
   }
 
@@ -71,16 +73,17 @@ export class GameEngine {
    */
   static startCombat(state: GameState): GameState {
     const tile = BoardEngine.getTile(state.board, state.player.position);
-    
-    if (!tile || !tile.enemy) {
-      return state;
+    if (!tile) return state;
+
+    // Boss tile — spawn boss enemy (tile has no pre-assigned enemy)
+    if (tile.type === 'boss') {
+      const boss = EnemyEngine.createBoss(state.currentFloor);
+      return { ...state, isInCombat: true, currentEnemy: boss };
     }
 
-    return {
-      ...state,
-      isInCombat: true,
-      currentEnemy: tile.enemy,
-    };
+    // Regular enemy tile
+    if (!tile.enemy) return state;
+    return { ...state, isInCombat: true, currentEnemy: tile.enemy };
   }
 
   /**
@@ -88,7 +91,8 @@ export class GameEngine {
    */
   static executeCombatTurn(
     state: GameState,
-    useSkillId?: string
+    useSkillId?: string,
+    upgradeState?: WeaponUpgradeState
   ): { state: GameState; result: CombatResult } {
     if (!state.currentEnemy) {
       throw new Error('No enemy in combat!');
@@ -98,14 +102,32 @@ export class GameEngine {
       ? state.player.skills.find((s) => s.id === useSkillId)
       : undefined;
 
-    const result = CombatEngine.executeTurn(state.player, state.currentEnemy, skill);
+    const result = CombatEngine.executeTurn(state.player, state.currentEnemy, skill, upgradeState);
 
-    // Update player
+    // Update player — apply mana changes and heal from skills
     let updatedPlayer = {
       ...state.player,
       health: result.playerHealth,
       coins: state.player.coins + result.coinsEarned,
     };
+
+    // Apply mana update (mage mana shield / skill costs)
+    if (result.updatedPlayerMana !== undefined) {
+      updatedPlayer = { ...updatedPlayer, mana: result.updatedPlayerMana };
+    }
+
+    // Apply heal-type skill effects to player HP
+    if (skill && skill.effect.type === 'heal') {
+      const healAmt = skill.effect.value || 0;
+      updatedPlayer = {
+        ...updatedPlayer,
+        health: Math.min(updatedPlayer.maxHealth, updatedPlayer.health + healAmt),
+      };
+      // Cleric divine_healing: remove all debuffs
+      if (skill.id === 'divine_healing') {
+        updatedPlayer = { ...updatedPlayer, statusEffects: [] };
+      }
+    }
 
     // Update cooldowns
     updatedPlayer = CharacterEngine.updateCooldowns(updatedPlayer);
@@ -120,10 +142,14 @@ export class GameEngine {
       };
     }
 
-    // Update enemy
+    // Update enemy — apply status effects from combat result
     const updatedEnemy = result.isEnemyDefeated
       ? null
-      : { ...state.currentEnemy, health: result.enemyHealth };
+      : {
+          ...state.currentEnemy,
+          health: result.enemyHealth,
+          statusEffects: result.updatedEnemyStatusEffects ?? state.currentEnemy.statusEffects,
+        };
 
     return {
       state: {

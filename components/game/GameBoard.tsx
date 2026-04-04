@@ -6,7 +6,8 @@ import { motion } from 'framer-motion';
 
 interface GameBoardProps {
   tiles: BoardTile[];
-  currentPosition: number;
+  currentPosition: number;   // logical final position (for tile highlighting)
+  displayPosition: number;   // animated token position (steps tile-by-tile)
   onTileClick?: (tileId: number) => void;
 }
 
@@ -30,41 +31,28 @@ const tileColors: Record<BoardTile['type'], string> = {
   trap: 'bg-orange-600',
 };
 
-export default function GameBoard({ tiles, currentPosition, onTileClick }: GameBoardProps) {
+export default function GameBoard({ tiles, currentPosition, displayPosition, onTileClick }: GameBoardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [dimensions, setDimensions] = useState({ width: 900, height: 600 });
-  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const updateScale = () => {
       if (!containerRef.current) return;
-      
-      const container = containerRef.current;
-      const containerWidth = container.clientWidth;
-      const containerHeight = container.clientHeight;
-      
-      // Base dimensions for the board
+      const containerWidth = containerRef.current.clientWidth;
+      const containerHeight = containerRef.current.clientHeight;
       const baseWidth = 900;
       const baseHeight = 600;
-      
-      // Calculate scale to fit container while maintaining aspect ratio
       const mobile = window.innerWidth < 640;
-      setIsMobile(mobile);
-      const padding = mobile ? 10 : 30; // Minimal padding for larger board
+      const padding = mobile ? 10 : 30;
       const scaleX = (containerWidth - padding) / baseWidth;
       const scaleY = (containerHeight - padding) / baseHeight;
-      const maxScale = mobile ? 1.15 : 1.0; // Larger scaling like before
+      const maxScale = mobile ? 1.15 : 1.0;
       const newScale = Math.min(scaleX, scaleY, maxScale);
-      
       setScale(newScale);
-      setDimensions({
-        width: baseWidth * newScale,
-        height: baseHeight * newScale,
-      });
+      setDimensions({ width: baseWidth * newScale, height: baseHeight * newScale });
     };
-
     updateScale();
     window.addEventListener('resize', updateScale);
     return () => window.removeEventListener('resize', updateScale);
@@ -73,22 +61,15 @@ export default function GameBoard({ tiles, currentPosition, onTileClick }: GameB
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
-    // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Draw connecting lines
     ctx.strokeStyle = 'rgba(78, 205, 196, 0.3)';
     ctx.lineWidth = 2 * scale;
     ctx.setLineDash([8 * scale, 4 * scale]);
-
     for (let i = 0; i < tiles.length; i++) {
       const current = tiles[i];
       const next = tiles[(i + 1) % tiles.length];
-
       ctx.beginPath();
       ctx.moveTo(current.x * scale, current.y * scale);
       ctx.lineTo(next.x * scale, next.y * scale);
@@ -96,18 +77,20 @@ export default function GameBoard({ tiles, currentPosition, onTileClick }: GameB
     }
   }, [tiles, scale]);
 
-  const baseTileSize = 60; // Consistent size for all devices
+  const baseTileSize = 60;
   const tileSize = baseTileSize * scale;
   const halfTile = tileSize / 2;
 
+  // Token position: interpolate between displayPosition tile coords
+  const tokenTile = tiles[displayPosition];
+  const tokenX = tokenTile ? tokenTile.x * scale : 0;
+  const tokenY = tokenTile ? tokenTile.y * scale : 0;
+
   return (
     <div ref={containerRef} className="relative w-full h-full flex items-center justify-center">
-      <div 
+      <div
         className="relative"
-        style={{
-          width: `${dimensions.width}px`,
-          height: `${dimensions.height}px`,
-        }}
+        style={{ width: `${dimensions.width}px`, height: `${dimensions.height}px` }}
       >
         {/* Canvas for connecting lines */}
         <canvas
@@ -120,6 +103,7 @@ export default function GameBoard({ tiles, currentPosition, onTileClick }: GameB
         {/* Tiles */}
         {tiles.map((tile, index) => {
           const isCurrentPosition = tile.id === currentPosition;
+          const isDisplayPosition = tile.id === displayPosition;
           const isVisited = tile.visited;
 
           return (
@@ -141,7 +125,7 @@ export default function GameBoard({ tiles, currentPosition, onTileClick }: GameB
                   w-full h-full rounded-full flex items-center justify-center
                   border-4 transition-all cursor-pointer relative
                   ${tileColors[tile.type]}
-                  ${isCurrentPosition ? 'border-game-gold scale-110 shadow-2xl z-10' : 'border-gray-700'}
+                  ${isCurrentPosition ? 'border-game-gold shadow-2xl z-10' : 'border-gray-700'}
                   ${isVisited ? 'opacity-100' : 'opacity-40'}
                   ${tile.trapTriggered ? 'opacity-30 grayscale' : ''}
                   ${onTileClick ? 'hover:scale-105' : ''}
@@ -162,41 +146,48 @@ export default function GameBoard({ tiles, currentPosition, onTileClick }: GameB
                     ? '🧪'
                     : tileEmojis[tile.type]}
                 </span>
-                
-                {/* Glow effect for current position */}
                 {isCurrentPosition && (
                   <div className="absolute inset-0 rounded-full bg-game-gold opacity-20 animate-pulse" />
                 )}
               </div>
 
               {/* Tile number */}
-              <div 
+              <div
                 className="absolute left-1/2 -translate-x-1/2 text-gray-400 font-bold bg-game-bg px-1.5 sm:px-2 py-0.5 rounded whitespace-nowrap"
-                style={{ 
+                style={{
                   bottom: `-${tileSize * 0.35}px`,
                   fontSize: `${Math.max(9, 11 * scale)}px`,
                 }}
               >
                 {tile.id + 1}
               </div>
-
-              {/* Current position indicator */}
-              {isCurrentPosition && (
-                <motion.div
-                  animate={{ y: [-6, 6, -6] }}
-                  transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
-                  className="absolute left-1/2 -translate-x-1/2 drop-shadow-lg z-20"
-                  style={{ 
-                    top: `-${tileSize * 0.5}px`,
-                    fontSize: `${Math.max(20, 28 * scale)}px`,
-                  }}
-                >
-                  👤
-                </motion.div>
-              )}
             </motion.div>
           );
         })}
+
+        {/* Animated player token — moves smoothly between tile positions */}
+        <motion.div
+          animate={{
+            x: tokenX,
+            y: tokenY - tileSize * 0.55, // float above the tile
+          }}
+          transition={{ type: 'tween', duration: 0.18, ease: 'easeInOut' }}
+          className="absolute pointer-events-none z-30"
+          style={{
+            // anchor at tile center
+            marginLeft: -halfTile * 0.5,
+            marginTop: 0,
+          }}
+        >
+          <motion.div
+            animate={{ y: [-4, 4, -4] }}
+            transition={{ repeat: Infinity, duration: 1.6, ease: 'easeInOut' }}
+            style={{ fontSize: `${Math.max(20, 28 * scale)}px` }}
+            className="drop-shadow-lg select-none"
+          >
+            👤
+          </motion.div>
+        </motion.div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { Enemy, EnemyType } from './types';
-import { ENEMY_STATS, ENEMY_TYPES } from './constants';
+import { ENEMY_STATS, ENEMY_TYPES, BOSS_STATS } from './constants';
 import { randomInt } from '@/lib/utils';
 
 export class EnemyEngine {
@@ -34,21 +34,35 @@ export class EnemyEngine {
   }
 
   /**
-   * Create a boss enemy
+   * Create a boss enemy for the given floor.
+   * Uses named boss stats for floors 5 and 10, falls back to a scaled troll otherwise.
    */
   static createBoss(floor: number): Enemy {
-    const bossMultiplier = 2.5;
+    const defined = BOSS_STATS[floor];
+    if (defined) {
+      return {
+        id: `boss-${floor}-${Date.now()}`,
+        type: ENEMY_TYPES.TROLL,
+        name: defined.name,
+        health: defined.health,
+        maxHealth: defined.health,
+        attack: defined.attack,
+        defense: defined.defense,
+        coinReward: defined.coinReward,
+        statusEffects: [],
+      };
+    }
+    // Generic fallback for any other floor
     const floorMultiplier = 1 + (floor - 1) * 0.3;
-
     return {
-      id: `boss-${Date.now()}`,
+      id: `boss-${floor}-${Date.now()}`,
       type: ENEMY_TYPES.TROLL,
       name: `Floor ${floor} Boss`,
-      health: Math.floor(100 * bossMultiplier * floorMultiplier),
-      maxHealth: Math.floor(100 * bossMultiplier * floorMultiplier),
-      attack: Math.floor(20 * bossMultiplier * floorMultiplier),
-      defense: Math.floor(10 * bossMultiplier * floorMultiplier),
-      coinReward: Math.floor(100 * floorMultiplier),
+      health: Math.floor(250 * floorMultiplier),
+      maxHealth: Math.floor(250 * floorMultiplier),
+      attack: Math.floor(35 * floorMultiplier),
+      defense: Math.floor(15 * floorMultiplier),
+      coinReward: Math.floor(120 * floorMultiplier),
       statusEffects: [],
     };
   }

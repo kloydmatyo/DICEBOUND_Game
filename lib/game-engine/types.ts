@@ -97,6 +97,8 @@ export interface CombatResult {
   isEnemyDefeated: boolean;
   coinsEarned: number;
   messages: string[];
+  updatedPlayerMana?: number;
+  updatedEnemyStatusEffects?: StatusEffect[];
 }
 
 export interface GameState {
@@ -106,6 +108,13 @@ export interface GameState {
   turnCount: number;
   isInCombat: boolean;
   currentEnemy: Enemy | null;
+  statUpgradeCounts: StatUpgradeCounts;
+}
+
+export interface StatUpgradeCounts {
+  attack: number;
+  defense: number;
+  health: number;
 }
 
 // --- Weapon Upgrade System ---

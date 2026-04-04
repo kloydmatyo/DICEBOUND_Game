@@ -1,6 +1,8 @@
 'use client';
 
 import { Player, Item } from '@/lib/game-engine';
+import { StatUpgradeCounts } from '@/lib/game-engine/types';
+import { calcUpgradePrice } from '@/lib/game-engine/StatUpgradeEngine';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -14,6 +16,7 @@ interface ShopPanelProps {
   items: Item[];
   onPurchase: (item: Item) => void;
   title?: string;
+  statUpgradeCounts?: StatUpgradeCounts;
 }
 
 const itemEmojis: Record<string, string> = {
@@ -22,7 +25,20 @@ const itemEmojis: Record<string, string> = {
   stat_upgrade: '⬆️',
   blessing_scroll: '📜',
   heartstone_amulet: '💎',
+  holy_water: '💧',
+  blessing: '🙏',
 };
+
+/** Returns the next-purchase price for a stat upgrade item, if applicable. */
+function getNextPrice(item: Item, counts?: StatUpgradeCounts): number | null {
+  if (!counts || item.effect.type !== 'permanent' || !item.effect.stat) return null;
+  const stat = item.effect.stat;
+  // Only show scaling info for the three scalable stats
+  if (stat !== 'attack' && stat !== 'defense' && stat !== 'health') return null;
+  const currentCount = counts[stat];
+  if (currentCount === 0) return null; // first purchase — no "next" yet
+  return calcUpgradePrice(stat, currentCount + 1);
+}
 
 export default function ShopPanel({
   isOpen,
@@ -31,27 +47,29 @@ export default function ShopPanel({
   items,
   onPurchase,
   title = '🏪 Shop',
+  statUpgradeCounts,
 }: ShopPanelProps) {
   const canAfford = (price: number) => player.coins >= price;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
-      <div className="mb-4 p-3 bg-game-bg rounded">
-        <div className="flex justify-between items-center">
-          <span className="text-gray-400">Your Coins:</span>
-          <span className="text-game-gold font-bold text-2xl">
-            💰 {player.coins}
-          </span>
-        </div>
+      <div className="mb-4 p-3 bg-game-bg rounded flex justify-between items-center">
+        <span className="text-gray-400">Your Coins:</span>
+        <span className="text-game-gold font-bold text-2xl">💰 {player.coins}</span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {items.map((item, index) => {
           const affordable = canAfford(item.price);
+          const nextPrice = getNextPrice(item, statUpgradeCounts);
+          // How many times this stat has been bought (for the "Lv." badge)
+          const upgradeLevel = statUpgradeCounts && item.effect.stat
+            ? (statUpgradeCounts[item.effect.stat as keyof StatUpgradeCounts] ?? 0)
+            : 0;
 
           return (
             <motion.div
-              key={item.id}
+              key={`${item.id}-${index}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
@@ -60,31 +78,39 @@ export default function ShopPanel({
                 variant="bordered"
                 className={cn(
                   'transition-all',
-                  affordable
-                    ? 'hover:border-game-gold cursor-pointer'
-                    : 'opacity-50'
+                  affordable ? 'hover:border-game-gold cursor-pointer' : 'opacity-50'
                 )}
               >
                 <div className="flex items-start gap-3">
                   <div className="text-4xl">{itemEmojis[item.type] || '📦'}</div>
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-lg font-bold text-game-gold">
-                        {item.name}
-                      </h3>
+                    {/* Name row */}
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <h3 className="text-lg font-bold text-game-gold">{item.name}</h3>
                       {item.autoConsume && (
                         <span className="text-xs bg-green-900/50 border border-green-600 text-green-400 px-1.5 py-0.5 rounded">
                           ⚡ Instant
                         </span>
                       )}
+                      {upgradeLevel > 0 && item.effect.type === 'permanent' && (
+                        <span className="text-xs bg-blue-900/50 border border-blue-500 text-blue-300 px-1.5 py-0.5 rounded">
+                          Lv.{upgradeLevel}
+                        </span>
+                      )}
                     </div>
-                    <p className="text-gray-400 text-sm mb-3">
-                      {item.description}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-game-gold font-bold text-xl">
-                        💰 {item.price}
-                      </span>
+
+                    <p className="text-gray-400 text-sm mb-3">{item.description}</p>
+
+                    {/* Price row */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-col">
+                        <span className="text-game-gold font-bold text-xl">💰 {item.price}</span>
+                        {nextPrice !== null && (
+                          <span className="text-xs text-gray-500 mt-0.5">
+                            Next: 💰 {nextPrice}
+                          </span>
+                        )}
+                      </div>
                       <Button
                         size="sm"
                         disabled={!affordable}

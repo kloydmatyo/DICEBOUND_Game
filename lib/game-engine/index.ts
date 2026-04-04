@@ -6,6 +6,7 @@ export { CombatEngine } from './CombatEngine';
 export { EnemyEngine } from './EnemyEngine';
 export { InventoryEngine } from './InventoryEngine';
 export { WeaponUpgradeEngine } from './WeaponUpgradeEngine';
+export { calcUpgradePrice, getStatUpgradeItems, incrementStatCount, createInitialStatCounts } from './StatUpgradeEngine';
 
 // Export types
 export type * from './types';

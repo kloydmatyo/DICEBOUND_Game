@@ -1,15 +1,22 @@
-import { Player, Enemy, CombatResult, Skill } from './types';
-import { randomInt, clamp } from '@/lib/utils';
-import { CharacterEngine } from './CharacterEngine';
+import { Player, Enemy, CombatResult, Skill, WeaponUpgradeState } from './types';
+import { randomInt } from '@/lib/utils';
 
 export class CombatEngine {
   /**
-   * Execute a combat turn
+   * Execute a combat turn, optionally with upgrade state for crits/specials.
+   * Returns updated player mana alongside the standard CombatResult.
    */
-  static executeTurn(player: Player, enemy: Enemy, useSkill?: Skill): CombatResult {
+  static executeTurn(
+    player: Player,
+    enemy: Enemy,
+    useSkill?: Skill,
+    upgradeState?: WeaponUpgradeState
+  ): CombatResult & { updatedPlayerMana?: number; updatedEnemyStatusEffects?: Enemy['statusEffects'] } {
     const messages: string[] = [];
     let playerDamage = 0;
     let enemyDamage = 0;
+    let updatedPlayerMana = player.mana;
+    let updatedEnemyStatusEffects = [...enemy.statusEffects];
 
     // Apply curse penalty to attack
     const isCursed = player.statusEffects.some((e) => e.type === 'cursed');
@@ -17,15 +24,70 @@ export class CombatEngine {
     const effectiveDefense = isCursed ? Math.max(0, Math.floor(player.defense * 0.6)) : player.defense;
     if (isCursed) messages.push('💀 Curse weakens you! (-40% ATK & DEF)');
 
+    // Crit params from upgrade state
+    const critChanceBonus = upgradeState?.totalCritChanceBonus ?? 0;
+    const critMultiplier = upgradeState ? (2.0 + upgradeState.totalCritDamageBonus) : 2.0;
+    const unlockedAbilities = upgradeState?.unlockedAbilities ?? [];
+
     // Player attacks
     if (useSkill && useSkill.type === 'active' && useSkill.currentCooldown === 0) {
       const cursedPlayer = { ...player, attack: effectiveAttack };
-      const skillResult = this.useSkill(cursedPlayer, enemy, useSkill);
+      const skillResult = this.useSkill(cursedPlayer, enemy, useSkill, upgradeState);
       playerDamage = skillResult.damage;
+      updatedPlayerMana = skillResult.updatedMana ?? updatedPlayerMana;
+      if (skillResult.appliedPoison) {
+        const alreadyPoisoned = updatedEnemyStatusEffects.some(e => e.type === 'poison');
+        if (!alreadyPoisoned) {
+          updatedEnemyStatusEffects = [...updatedEnemyStatusEffects, { type: 'poison' as const, duration: 3, value: 6 }];
+        }
+      }
       messages.push(...skillResult.messages);
     } else {
-      playerDamage = this.calculateDamage(effectiveAttack, enemy.defense);
-      messages.push(`You attack for ${playerDamage} damage!`);
+      // Check for special ability procs on basic attack
+      if (unlockedAbilities.includes('holy_smite') && Math.random() < 0.25) {
+        const smiteDmg = Math.floor(effectiveAttack * 1.5);
+        playerDamage = smiteDmg;
+        messages.push(`✨ Holy Smite! You deal ${smiteDmg} divine damage!`);
+      } else if (unlockedAbilities.includes('storm_volley') && Math.random() < 0.3) {
+        const volleyDmg = Math.floor(effectiveAttack * 1.8);
+        playerDamage = volleyDmg;
+        messages.push(`⚡ Storm Volley! Arrows rain down for ${volleyDmg} damage!`);
+      } else if (unlockedAbilities.includes('arcane_nova') && Math.random() < 0.25) {
+        const novaDmg = Math.floor(effectiveAttack * 2.0);
+        playerDamage = novaDmg;
+        messages.push(`🌌 Arcane Nova! Reality shatters for ${novaDmg} damage!`);
+      } else if (unlockedAbilities.includes('ground_shatter') && Math.random() < 0.2) {
+        const shatterDmg = Math.floor(effectiveAttack * 2.2);
+        playerDamage = shatterDmg;
+        messages.push(`🔨 Ground Shatter! The earth splits for ${shatterDmg} damage!`);
+      } else if (unlockedAbilities.includes('death_mark') && Math.random() < 0.3) {
+        const markDmg = Math.floor(effectiveAttack * 2.5);
+        playerDamage = markDmg;
+        messages.push(`💀 Death Mark! A lethal strike for ${markDmg} damage!`);
+      } else if (unlockedAbilities.includes('divine_retribution') && Math.random() < 0.25) {
+        const retribDmg = Math.floor(effectiveAttack * 1.6);
+        playerDamage = retribDmg;
+        messages.push(`⚡ Divine Retribution! Holy wrath deals ${retribDmg} damage!`);
+      } else {
+        // Normal attack with crit check
+        const baseDmg = this.calculateDamage(effectiveAttack, enemy.defense);
+        if (this.isCriticalHit(player, enemy, critChanceBonus)) {
+          playerDamage = this.applyCritical(baseDmg, critMultiplier);
+          messages.push(`💥 Critical hit! You deal ${playerDamage} damage!`);
+        } else {
+          playerDamage = baseDmg;
+          messages.push(`You attack for ${playerDamage} damage!`);
+        }
+      }
+
+      // Assassin poison passive: 35% chance to apply poison on basic attack
+      if (player.class === 'assassin' && Math.random() < 0.35) {
+        const alreadyPoisoned = updatedEnemyStatusEffects.some(e => e.type === 'poison');
+        if (!alreadyPoisoned) {
+          updatedEnemyStatusEffects = [...updatedEnemyStatusEffects, { type: 'poison' as const, duration: 3, value: 6 }];
+          messages.push('🧪 Poison Mastery! Enemy is poisoned!');
+        }
+      }
     }
 
     // Apply damage to enemy
@@ -34,7 +96,18 @@ export class CombatEngine {
 
     // Enemy attacks back if still alive
     if (!isEnemyDefeated) {
-      enemyDamage = this.calculateDamage(enemy.attack, effectiveDefense);
+      let incomingDamage = this.calculateDamage(enemy.attack, effectiveDefense);
+
+      // Mage passive: Mana Shield — absorb damage with mana at 2:1 ratio
+      if (player.class === 'mage' && updatedPlayerMana && updatedPlayerMana > 0) {
+        const manaAbsorb = Math.min(updatedPlayerMana, incomingDamage * 2);
+        const absorbed = Math.floor(manaAbsorb / 2);
+        incomingDamage = Math.max(0, incomingDamage - absorbed);
+        updatedPlayerMana = Math.max(0, updatedPlayerMana - manaAbsorb);
+        if (absorbed > 0) messages.push(`🔮 Mana Shield absorbs ${absorbed} damage! (${updatedPlayerMana} mana left)`);
+      }
+
+      enemyDamage = incomingDamage;
       messages.push(`${enemy.name} attacks for ${enemyDamage} damage!`);
     }
 
@@ -56,6 +129,8 @@ export class CombatEngine {
       isEnemyDefeated,
       coinsEarned,
       messages,
+      updatedPlayerMana,
+      updatedEnemyStatusEffects,
     };
   }
 
@@ -74,39 +149,81 @@ export class CombatEngine {
   static useSkill(
     player: Player,
     enemy: Enemy,
-    skill: Skill
-  ): { damage: number; messages: string[] } {
+    skill: Skill,
+    upgradeState?: WeaponUpgradeState
+  ): { damage: number; messages: string[]; updatedMana?: number; appliedPoison?: boolean } {
     const messages: string[] = [];
     let damage = 0;
+    let updatedMana = player.mana;
+    let appliedPoison = false;
+
+    // Mana cost for mage skills (20 mana per active skill use)
+    const MANA_COST = 20;
+    if (player.class === 'mage') {
+      if ((updatedMana ?? 0) < MANA_COST) {
+        // Not enough mana — fall back to basic attack
+        const baseDmg = this.calculateDamage(player.attack, enemy.defense);
+        messages.push(`🔮 Not enough mana! Basic attack for ${baseDmg} damage.`);
+        return { damage: baseDmg, messages, updatedMana };
+      }
+      updatedMana = (updatedMana ?? 0) - MANA_COST;
+    }
 
     messages.push(`You use ${skill.name}!`);
 
-    switch (skill.effect.type) {
-      case 'damage':
-        damage = Math.floor(player.attack * (skill.effect.value || 1));
-        messages.push(`${skill.name} deals ${damage} damage!`);
-        break;
+    const critChanceBonus = upgradeState?.totalCritChanceBonus ?? 0;
+    const critMultiplier = upgradeState ? (2.0 + upgradeState.totalCritDamageBonus) : 2.0;
 
-      case 'heal':
+    switch (skill.effect.type) {
+      case 'damage': {
+        const raw = Math.floor(player.attack * (skill.effect.value || 1));
+        if (this.isCriticalHit(player, enemy, critChanceBonus)) {
+          damage = this.applyCritical(raw, critMultiplier);
+          messages.push(`💥 Critical! ${skill.name} deals ${damage} damage!`);
+        } else {
+          damage = raw;
+          messages.push(`${skill.name} deals ${damage} damage!`);
+        }
+        // Assassin: poison on skill hit
+        if (player.class === 'assassin') appliedPoison = true;
+        break;
+      }
+
+      case 'heal': {
         const healAmount = skill.effect.value || 0;
         messages.push(`You heal for ${healAmount} HP!`);
+        // Cleric: also remove debuffs on divine_healing
+        if (skill.id === 'divine_healing') {
+          messages.push('✨ Debuffs cleansed!');
+        }
         break;
+      }
 
       case 'buff':
         messages.push(`${skill.name} empowers you!`);
         damage = player.attack;
         break;
 
-      case 'special':
-        damage = Math.floor(player.attack * (skill.effect.value || 1.5));
-        messages.push(`${skill.name} unleashes devastating power!`);
+      case 'special': {
+        // Mage elemental mastery — cycles element for flavor
+        const elements = ['🔥 Fire', '❄️ Ice', '⚡ Lightning'];
+        const element = elements[Math.floor(Math.random() * elements.length)];
+        const raw = Math.floor(player.attack * (skill.effect.value || 1.5));
+        if (this.isCriticalHit(player, enemy, critChanceBonus)) {
+          damage = this.applyCritical(raw, critMultiplier);
+          messages.push(`💥 ${element} Critical! ${skill.name} deals ${damage} damage!`);
+        } else {
+          damage = raw;
+          messages.push(`${element}! ${skill.name} deals ${damage} damage!`);
+        }
         break;
+      }
 
       default:
         damage = player.attack;
     }
 
-    return { damage, messages };
+    return { damage, messages, updatedMana, appliedPoison };
   }
 
   /**

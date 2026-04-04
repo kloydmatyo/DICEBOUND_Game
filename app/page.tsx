@@ -1,11 +1,22 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Button from '@/components/ui/Button';
 import { useRouter } from 'next/navigation';
 
+const HOW_TO_PLAY = [
+  { icon: '🎲', title: 'Roll & Move', text: 'Roll the dice each turn to move your token around the board. Land on different tiles to trigger events.' },
+  { icon: '⚔️', title: 'Combat', text: 'Fight enemies using basic attacks or class skills. Skills have cooldowns — use them wisely. You can flee with a 50% chance, but failure costs HP.' },
+  { icon: '🔮', title: 'Classes', text: 'Knight (tanky), Archer (crit-focused), Mage (mana-powered spells + shield), Barbarian (raw damage), Assassin (poison + crits), Cleric (healing).' },
+  { icon: '🏪', title: 'Shop & Upgrades', text: 'Spend coins at shop tiles to buy potions and stat upgrades. Visit the Weapon Upgrade panel to unlock powerful class-specific abilities.' },
+  { icon: '🗺️', title: 'Floors', text: 'Complete a full lap to advance floors. Boss floors require defeating the boss. Each floor scales enemy difficulty.' },
+  { icon: '💀', title: 'Permadeath', text: 'If your HP hits 0, it\'s over. Manage your resources carefully — potions, skills, and knowing when to flee can save your run.' },
+];
+
 export default function Home() {
   const router = useRouter();
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-game-bg">
@@ -60,19 +71,10 @@ export default function Home() {
           <Button
             size="lg"
             variant="secondary"
-            onClick={() => alert('Coming soon!')}
+            onClick={() => setShowHowToPlay(true)}
             className="text-xl w-full"
           >
             📖 How to Play
-          </Button>
-
-          <Button
-            size="lg"
-            variant="ghost"
-            onClick={() => alert('Coming soon!')}
-            className="text-xl w-full"
-          >
-            ⚙️ Settings
           </Button>
         </motion.div>
 
@@ -119,6 +121,46 @@ export default function Home() {
         <p>Built with Next.js, TypeScript & React</p>
         <p className="mt-1">© 2024 Dicebound</p>
       </motion.div>
+
+      {/* How to Play Modal */}
+      <AnimatePresence>
+        {showHowToPlay && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+            onClick={() => setShowHowToPlay(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#0f1220] border border-game-gold/40 rounded-2xl p-6 max-w-lg w-full shadow-2xl max-h-[80vh] overflow-y-auto"
+            >
+              <h2 className="text-2xl font-extrabold text-game-gold mb-4 text-center tracking-widest">📖 HOW TO PLAY</h2>
+              <div className="flex flex-col gap-4">
+                {HOW_TO_PLAY.map((item) => (
+                  <div key={item.title} className="flex gap-3 items-start">
+                    <span className="text-2xl flex-shrink-0">{item.icon}</span>
+                    <div>
+                      <p className="text-yellow-300 font-bold text-sm">{item.title}</p>
+                      <p className="text-gray-300 text-sm leading-relaxed">{item.text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowHowToPlay(false)}
+                className="mt-6 w-full py-2 rounded-xl bg-game-gold/20 hover:bg-game-gold/30 text-game-gold font-bold text-sm border border-game-gold/40 transition-all"
+              >
+                Got it!
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

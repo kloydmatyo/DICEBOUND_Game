@@ -211,7 +211,11 @@ export const SHOP_PRICES = {
   BLESSING: 40,
 } as const;
 
-// Weapon Upgrade Tiers
+// Boss definitions per floor milestone
+export const BOSS_STATS: Record<number, { name: string; health: number; attack: number; defense: number; coinReward: number }> = {
+  5:  { name: 'The Stone Warden',   health: 280, attack: 38, defense: 18, coinReward: 150 },
+  10: { name: 'The Void Tyrant',    health: 520, attack: 65, defense: 30, coinReward: 300 },
+};
 export const WEAPON_UPGRADE_TIERS = {
   BASIC: 'basic',
   ADVANCED: 'advanced',
