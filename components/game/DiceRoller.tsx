@@ -68,7 +68,7 @@ export default function DiceRoller({ onRoll, disabled, lastRoll }: DiceRollerPro
             >
               <div className="text-center">
                 <div className={`text-[10px] sm:text-xs mb-0.5 sm:mb-1 font-bold uppercase tracking-wider ${highlight ? 'text-black' : 'text-gray-400'}`}>
-                  {isRolling ? 'Rolling...' : 'You Rolled'}
+                  {isRolling ? 'Loading...' : 'Last Roll'}
                 </div>
                 <div className={`text-3xl sm:text-5xl font-bold drop-shadow-lg ${highlight ? 'text-black' : 'text-game-gold'}`}>
                   {DICE_FACES[(displayFace - 1)]} {displayFace}
@@ -89,7 +89,7 @@ export default function DiceRoller({ onRoll, disabled, lastRoll }: DiceRollerPro
             disabled={disabled || isRolling}
             className="text-base sm:text-2xl px-8 sm:px-16 py-4 sm:py-8 shadow-2xl text-white font-bold uppercase tracking-wider"
           >
-            {isRolling ? '🎲 Rolling...' : '🎲 ROLL DICE'}
+          {isRolling ? '🗺️ Loading...' : '🗺️ CHOOSE PATH'}
           </Button>
         </motion.div>
       </div>

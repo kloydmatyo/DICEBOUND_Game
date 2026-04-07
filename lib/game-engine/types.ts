@@ -45,6 +45,55 @@ export interface BoardTile {
   enemy?: Enemy;
   trapType?: TrapType;
   trapTriggered?: boolean;
+  /** Branching: which tile ids this tile connects forward to */
+  nextIds?: number[];
+  /** Branching: which tile ids lead into this tile */
+  prevIds?: number[];
+  /** Branch depth (distance from start) */
+  depth?: number;
+}
+
+/**
+ * 2d6 Destiny States — outcome modifier applied AFTER player chooses a branch.
+ * Roll 2d6 (2–12): 7 is most common, extremes are rare.
+ */
+export type DestinyState = 'cursed' | 'unlucky' | 'balanced' | 'favored' | 'exalted';
+
+export interface DestinyResult {
+  /** Sum of two d6 rolls (2–12) */
+  total: number;
+  /** Individual die values */
+  die1: number;
+  die2: number;
+  /** Resolved destiny state */
+  state: DestinyState;
+  /** Display emoji */
+  emoji: string;
+  /** Short label */
+  label: string;
+  /** Description of effect */
+  description: string;
+}
+
+/** Branch options shown to player BEFORE rolling — player picks one, then rolls 2d6 */
+export interface BranchChoice {
+  /** Tile ids the player can choose from (adjacent nextIds of current tile) */
+  tileOptions: number[];
+  /** Set after player picks a tile and rolls 2d6 */
+  chosenTileId?: number;
+  /** 2d6 outcome result, set after rolling */
+  destinyResult?: DestinyResult;
+  // Legacy fields kept for DiceManipulator compatibility
+  diceValue?: number;
+  altDiceValue?: number;
+  altTileOptions?: number[];
+}
+
+/** Dice manipulation resources */
+export interface DiceManipulation {
+  rerolls: number;       // free rerolls remaining this floor
+  modifiers: number;     // +1/-1 tokens remaining
+  doubleRolls: number;   // "choose 1 of 2 rolls" tokens remaining
 }
 
 export interface Item {
@@ -109,6 +158,10 @@ export interface GameState {
   isInCombat: boolean;
   currentEnemy: Enemy | null;
   statUpgradeCounts: StatUpgradeCounts;
+  /** Pending branch choice waiting for player to pick a tile */
+  pendingBranchChoice?: BranchChoice | null;
+  /** Dice manipulation resources */
+  diceManipulation: DiceManipulation;
 }
 
 export interface StatUpgradeCounts {

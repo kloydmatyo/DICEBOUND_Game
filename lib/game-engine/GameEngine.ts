@@ -1,23 +1,22 @@
-import { GameState, Player, CharacterClass, CombatResult, WeaponUpgradeState } from './types';
+import { GameState, Player, CharacterClass, CombatResult, WeaponUpgradeState, BranchChoice, DiceManipulation, DestinyResult } from './types';
 import { CharacterEngine } from './CharacterEngine';
 import { BoardEngine } from './BoardEngine';
 import { CombatEngine } from './CombatEngine';
 import { EnemyEngine } from './EnemyEngine';
-import { GAME_CONFIG } from './constants';
+import { GAME_CONFIG, roll2d6 } from './constants';
 import { createInitialStatCounts } from './StatUpgradeEngine';
 import { randomInt } from '@/lib/utils';
 
-/**
- * Main Game Engine - Orchestrates all game systems
- */
+const DEFAULT_DICE_MANIPULATION: DiceManipulation = {
+  rerolls: 1,
+  modifiers: 2,
+  doubleRolls: 1,
+};
+
 export class GameEngine {
-  /**
-   * Initialize a new game
-   */
   static initializeGame(characterClass: CharacterClass): GameState {
     const player = CharacterEngine.createPlayer(characterClass);
     const board = BoardEngine.generateBoard(GAME_CONFIG.STARTING_FLOOR);
-
     return {
       player,
       currentFloor: GAME_CONFIG.STARTING_FLOOR,
@@ -26,123 +25,235 @@ export class GameEngine {
       isInCombat: false,
       currentEnemy: null,
       statUpgradeCounts: createInitialStatCounts(),
+      pendingBranchChoice: null,
+      diceManipulation: { ...DEFAULT_DICE_MANIPULATION },
     };
   }
 
   /**
-   * Roll dice and move player
+   * NEW FLOW — Step 1: Show branch options to player (no dice yet).
+   * Returns the adjacent tile options the player can choose from.
    */
-  static rollDice(state: GameState): { state: GameState; diceValue: number; lapped: boolean } {
+  static getBranchOptions(state: GameState): { state: GameState; branchChoice: BranchChoice } {
+    const tileOptions = BoardEngine.getAdjacentTiles(state.board, state.player.position);
+    const branchChoice: BranchChoice = { tileOptions };
+    return {
+      state: { ...state, pendingBranchChoice: branchChoice },
+      branchChoice,
+    };
+  }
+
+  /**
+   * NEW FLOW — Step 2: Player chose a tile, now roll 2d6 for the outcome modifier.
+   * Returns the destiny result and updated state with chosen tile + destiny.
+   */
+  static rollOutcome(state: GameState, chosenTileId: number): { state: GameState; destinyResult: DestinyResult } {
+    const destinyResult = roll2d6();
+    const branchChoice: BranchChoice = {
+      tileOptions: state.pendingBranchChoice?.tileOptions ?? [],
+      chosenTileId,
+      destinyResult,
+      diceValue: destinyResult.total, // legacy compat
+    };
+    return {
+      state: {
+        ...state,
+        pendingBranchChoice: branchChoice,
+        turnCount: state.turnCount + 1,
+      },
+      destinyResult,
+    };
+  }
+
+  /**
+   * LEGACY — Roll dice (kept for backward compat / debug).
+   * @deprecated Use getBranchOptions() + rollOutcome() instead.
+   */
+  static rollDice(state: GameState): { state: GameState; diceValue: number; branchChoice: BranchChoice } {
     const diceValue = randomInt(1, GAME_CONFIG.DICE_SIDES);
-    const currentPosition = state.player.position;
-    const newPosition = BoardEngine.getNextPosition(
-      currentPosition,
+    const tileOptions = BoardEngine.getReachableTiles(state.board, state.player.position, diceValue);
+    const branchChoice: BranchChoice = { tileOptions, diceValue };
+    return {
+      state: { ...state, pendingBranchChoice: branchChoice, turnCount: state.turnCount + 1 },
       diceValue,
-      state.board.length
-    );
+      branchChoice,
+    };
+  }
 
-    // Detect lap: wrapped past tile 0 (new position is less than current, and we actually moved forward)
-    const lapped = newPosition < currentPosition || (currentPosition + diceValue >= state.board.length);
+  /**
+   * "Choose 1 of 2 rolls" — roll twice, player picks which roll to use.
+   * Costs 1 doubleRolls token.
+   */
+  static rollDouble(state: GameState): { state: GameState; branchChoice: BranchChoice } | null {
+    if (state.diceManipulation.doubleRolls <= 0) return null;
 
-    // Reshuffle board on lap, then mark the new tile as visited
-    let updatedBoard = lapped
-      ? BoardEngine.reshuffleBoard(state.board, state.currentFloor)
-      : state.board;
+    const d1 = randomInt(1, GAME_CONFIG.DICE_SIDES);
+    const d2 = randomInt(1, GAME_CONFIG.DICE_SIDES);
+    const opts1 = BoardEngine.getReachableTiles(state.board, state.player.position, d1);
+    const opts2 = BoardEngine.getReachableTiles(state.board, state.player.position, d2);
 
-    updatedBoard = BoardEngine.visitTile(updatedBoard, newPosition);
-
-    const updatedPlayer = {
-      ...state.player,
-      position: newPosition,
+    const branchChoice: BranchChoice = {
+      tileOptions: opts1,
+      diceValue: d1,
+      altDiceValue: d2,
+      altTileOptions: opts2,
     };
 
     return {
       state: {
         ...state,
-        player: updatedPlayer,
-        board: updatedBoard,
+        pendingBranchChoice: branchChoice,
         turnCount: state.turnCount + 1,
+        diceManipulation: {
+          ...state.diceManipulation,
+          doubleRolls: state.diceManipulation.doubleRolls - 1,
+        },
       },
-      diceValue,
-      lapped,
+      branchChoice,
     };
   }
 
   /**
-   * Start combat with enemy on current tile
+   * Reroll the current pending dice. Costs 1 reroll token.
    */
+  static reroll(state: GameState): { state: GameState; diceValue: number; branchChoice: BranchChoice } | null {
+    if (state.diceManipulation.rerolls <= 0 || !state.pendingBranchChoice) return null;
+
+    const diceValue = randomInt(1, GAME_CONFIG.DICE_SIDES);
+    const tileOptions = BoardEngine.getReachableTiles(state.board, state.player.position, diceValue);
+    const branchChoice: BranchChoice = { tileOptions, diceValue };
+
+    return {
+      state: {
+        ...state,
+        pendingBranchChoice: branchChoice,
+        diceManipulation: {
+          ...state.diceManipulation,
+          rerolls: state.diceManipulation.rerolls - 1,
+        },
+      },
+      diceValue,
+      branchChoice,
+    };
+  }
+
+  /**
+   * Apply a +1 or -1 modifier to the current pending dice roll.
+   * Costs 1 modifier token.
+   */
+  static applyModifier(state: GameState, delta: 1 | -1): { state: GameState; diceValue: number; branchChoice: BranchChoice } | null {
+    if (state.diceManipulation.modifiers <= 0 || !state.pendingBranchChoice) return null;
+
+    const raw = (state.pendingBranchChoice.diceValue ?? 0) + delta;
+    const diceValue = Math.max(1, Math.min(GAME_CONFIG.DICE_SIDES, raw));
+    const tileOptions = BoardEngine.getReachableTiles(state.board, state.player.position, diceValue);
+    const branchChoice: BranchChoice = { tileOptions, diceValue };
+
+    return {
+      state: {
+        ...state,
+        pendingBranchChoice: branchChoice,
+        diceManipulation: {
+          ...state.diceManipulation,
+          modifiers: state.diceManipulation.modifiers - 1,
+        },
+      },
+      diceValue,
+      branchChoice,
+    };
+  }
+
+  /**
+   * Player chooses a tile from the pending branch choice and moves there.
+   * Optionally applies a destiny modifier to the tile's enemy (if combat).
+   */
+  static chooseTile(state: GameState, tileId: number): GameState {
+    const destiny = state.pendingBranchChoice?.destinyResult;
+    let updatedBoard = BoardEngine.visitTile(state.board, tileId);
+
+    // Apply destiny modifier to enemy HP if applicable
+    if (destiny && (destiny.state === 'cursed' || destiny.state === 'unlucky' || destiny.state === 'favored' || destiny.state === 'exalted')) {
+      updatedBoard = updatedBoard.map(tile => {
+        if (tile.id !== tileId || !tile.enemy) return tile;
+        let newEnemy = { ...tile.enemy };
+        if (destiny.state === 'cursed') {
+          // Enemy 2× HP
+          newEnemy = { ...newEnemy, health: newEnemy.health * 2, maxHealth: newEnemy.maxHealth * 2 };
+        } else if (destiny.state === 'exalted') {
+          // Instant win — set enemy HP to 0
+          newEnemy = { ...newEnemy, health: 0 };
+        }
+        return { ...tile, enemy: newEnemy };
+      });
+    }
+
+    return {
+      ...state,
+      player: { ...state.player, position: tileId },
+      board: updatedBoard,
+      pendingBranchChoice: null,
+    };
+  }
+
+  /**
+   * Check if the player has reached the final tile (boss/end) of the board.
+   */
+  static isFloorComplete(state: GameState): boolean {
+    const hasBossFloor = state.board.some((t) => t.type === 'boss');
+    if (hasBossFloor) {
+      return state.board.some((t) => t.type === 'boss' && t.visited) && !state.isInCombat;
+    }
+    // Non-boss floor: complete when the final depth tile is visited
+    const maxDepth = Math.max(...state.board.map(t => t.depth ?? 0));
+    return state.board.some(t => (t.depth ?? 0) === maxDepth && t.visited) && !state.isInCombat;
+  }
+
   static startCombat(state: GameState): GameState {
     const tile = BoardEngine.getTile(state.board, state.player.position);
     if (!tile) return state;
-
-    // Boss tile — spawn boss enemy (tile has no pre-assigned enemy)
     if (tile.type === 'boss') {
       const boss = EnemyEngine.createBoss(state.currentFloor);
       return { ...state, isInCombat: true, currentEnemy: boss };
     }
-
-    // Regular enemy tile
     if (!tile.enemy) return state;
     return { ...state, isInCombat: true, currentEnemy: tile.enemy };
   }
 
-  /**
-   * Execute combat turn
-   */
   static executeCombatTurn(
     state: GameState,
     useSkillId?: string,
     upgradeState?: WeaponUpgradeState
   ): { state: GameState; result: CombatResult } {
-    if (!state.currentEnemy) {
-      throw new Error('No enemy in combat!');
-    }
+    if (!state.currentEnemy) throw new Error('No enemy in combat!');
 
-    const skill = useSkillId
-      ? state.player.skills.find((s) => s.id === useSkillId)
-      : undefined;
-
+    const skill = useSkillId ? state.player.skills.find((s) => s.id === useSkillId) : undefined;
     const result = CombatEngine.executeTurn(state.player, state.currentEnemy, skill, upgradeState);
 
-    // Update player — apply mana changes and heal from skills
     let updatedPlayer = {
       ...state.player,
       health: result.playerHealth,
       coins: state.player.coins + result.coinsEarned,
     };
 
-    // Apply mana update (mage mana shield / skill costs)
     if (result.updatedPlayerMana !== undefined) {
       updatedPlayer = { ...updatedPlayer, mana: result.updatedPlayerMana };
     }
 
-    // Apply heal-type skill effects to player HP
     if (skill && skill.effect.type === 'heal') {
       const healAmt = skill.effect.value || 0;
-      updatedPlayer = {
-        ...updatedPlayer,
-        health: Math.min(updatedPlayer.maxHealth, updatedPlayer.health + healAmt),
-      };
-      // Cleric divine_healing: remove all debuffs
-      if (skill.id === 'divine_healing') {
-        updatedPlayer = { ...updatedPlayer, statusEffects: [] };
-      }
+      updatedPlayer = { ...updatedPlayer, health: Math.min(updatedPlayer.maxHealth, updatedPlayer.health + healAmt) };
+      if (skill.id === 'divine_healing') updatedPlayer = { ...updatedPlayer, statusEffects: [] };
     }
 
-    // Update cooldowns
     updatedPlayer = CharacterEngine.updateCooldowns(updatedPlayer);
 
-    // If skill was used, set its cooldown
     if (skill && skill.type === 'active') {
       updatedPlayer = {
         ...updatedPlayer,
-        skills: updatedPlayer.skills.map((s) =>
-          s.id === skill.id ? { ...s, currentCooldown: s.cooldown } : s
-        ),
+        skills: updatedPlayer.skills.map((s) => s.id === skill.id ? { ...s, currentCooldown: s.cooldown } : s),
       };
     }
 
-    // Update enemy — apply status effects from combat result
     const updatedEnemy = result.isEnemyDefeated
       ? null
       : {
@@ -152,74 +263,39 @@ export class GameEngine {
         };
 
     return {
-      state: {
-        ...state,
-        player: updatedPlayer,
-        currentEnemy: updatedEnemy,
-        isInCombat: !result.isEnemyDefeated,
-      },
+      state: { ...state, player: updatedPlayer, currentEnemy: updatedEnemy, isInCombat: !result.isEnemyDefeated },
       result,
     };
   }
 
-  /**
-   * End combat
-   */
   static endCombat(state: GameState): GameState {
-    return {
-      ...state,
-      isInCombat: false,
-      currentEnemy: null,
-    };
+    return { ...state, isInCombat: false, currentEnemy: null };
   }
 
-  /**
-   * Advance to next floor
-   */
   static advanceFloor(state: GameState): GameState {
     const nextFloor = state.currentFloor + 1;
     const newBoard = BoardEngine.generateBoard(nextFloor);
-
     return {
       ...state,
       currentFloor: nextFloor,
       board: newBoard,
       player: { ...state.player, position: 0 },
       turnCount: 0,
+      pendingBranchChoice: null,
+      diceManipulation: { ...DEFAULT_DICE_MANIPULATION },
     };
   }
 
-  /**
-   * Check if game is over
-   */
   static isGameOver(state: GameState): boolean {
     return !CharacterEngine.isAlive(state.player);
   }
 
-  /**
-   * Check if floor is complete.
-   * On boss floors: player must defeat any boss tile (visited + not in combat).
-   * On non-boss floors: handled by lap detection in rollDice.
-   */
-  static isFloorComplete(state: GameState): boolean {
-    const hasBossFloor = state.board.some((t) => t.type === 'boss');
-    if (hasBossFloor) {
-      // Floor ends as soon as one boss tile has been visited (boss defeated) and combat is over
-      return state.board.some((t) => t.type === 'boss' && t.visited) && !state.isInCombat;
-    }
-    return false;
-  }
-
-  /**
-   * Get game statistics
-   */
   static getStatistics(state: GameState) {
     return {
       floor: state.currentFloor,
       turns: state.turnCount,
       health: `${state.player.health}/${state.player.maxHealth}`,
       coins: state.player.coins,
-      position: `${state.player.position + 1}/${state.board.length}`,
     };
   }
 }

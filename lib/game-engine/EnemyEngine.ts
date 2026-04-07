@@ -13,6 +13,25 @@ export class EnemyEngine {
   }
 
   /**
+   * Generate an elite enemy — 60% stronger than a normal enemy, better coin reward
+   */
+  static generateEliteEnemy(floor: number): Enemy {
+    const enemyTypes = Object.keys(ENEMY_STATS) as EnemyType[];
+    const randomType = enemyTypes[randomInt(0, enemyTypes.length - 1)];
+    const base = this.createEnemy(randomType, floor);
+    return {
+      ...base,
+      id: `elite-${Date.now()}-${Math.random()}`,
+      name: `Elite ${base.name}`,
+      health: Math.floor(base.health * 1.6),
+      maxHealth: Math.floor(base.maxHealth * 1.6),
+      attack: Math.floor(base.attack * 1.4),
+      defense: Math.floor(base.defense * 1.3),
+      coinReward: Math.floor(base.coinReward * 2.5),
+    };
+  }
+
+  /**
    * Create an enemy of specific type, scaled by absolute floor
    */
   static createEnemy(type: EnemyType, floor: number): Enemy {

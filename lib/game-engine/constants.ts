@@ -7,6 +7,35 @@ export const GAME_CONFIG = {
   FLOORS_PER_DUNGEON: 10,
 } as const;
 
+import type { DestinyState, DestinyResult } from './types';
+
+/**
+ * 2d6 Destiny Table — maps roll total (2–12) to a destiny state.
+ * 7 is most common (~16.7%), extremes (2 & 12) are rarest (~2.8% each).
+ */
+export const DESTINY_TABLE: Record<number, Omit<DestinyResult, 'total' | 'die1' | 'die2'>> = {
+  2:  { state: 'cursed',   emoji: '💀', label: 'Cursed',   description: 'Critical Debuff: Enemy 2× HP / Prices 3× / Severe penalties' },
+  3:  { state: 'unlucky',  emoji: '📉', label: 'Unlucky',  description: 'Minor Debuff: Status ailment / +25% prices' },
+  4:  { state: 'unlucky',  emoji: '📉', label: 'Unlucky',  description: 'Minor Debuff: Status ailment / +25% prices' },
+  5:  { state: 'unlucky',  emoji: '📉', label: 'Unlucky',  description: 'Minor Debuff: Status ailment / +25% prices' },
+  6:  { state: 'balanced', emoji: '⚪', label: 'Balanced', description: 'Normal: Standard encounter' },
+  7:  { state: 'balanced', emoji: '⚪', label: 'Balanced', description: 'Normal: Standard encounter' },
+  8:  { state: 'balanced', emoji: '⚪', label: 'Balanced', description: 'Normal: Standard encounter' },
+  9:  { state: 'favored',  emoji: '📈', label: 'Favored',  description: 'Minor Buff: Bonus HP/Energy / −25% prices' },
+  10: { state: 'favored',  emoji: '📈', label: 'Favored',  description: 'Minor Buff: Bonus HP/Energy / −25% prices' },
+  11: { state: 'favored',  emoji: '📈', label: 'Favored',  description: 'Minor Buff: Bonus HP/Energy / −25% prices' },
+  12: { state: 'exalted',  emoji: '✨', label: 'Exalted',  description: 'Critical Buff: Instant win (combat) / Legendary items / Free shop' },
+};
+
+/** Roll 2d6 and return a full DestinyResult */
+export function roll2d6(): DestinyResult {
+  const die1 = Math.floor(Math.random() * 6) + 1;
+  const die2 = Math.floor(Math.random() * 6) + 1;
+  const total = die1 + die2;
+  const entry = DESTINY_TABLE[total];
+  return { total, die1, die2, ...entry };
+}
+
 /** Returns the 1-based dungeon number for a given floor (floors 1-10 = dungeon 1, 11-20 = dungeon 2, etc.) */
 export function getDungeonNumber(floor: number): number {
   return Math.ceil(floor / GAME_CONFIG.FLOORS_PER_DUNGEON);
@@ -90,6 +119,7 @@ export const TILE_TYPES = {
   START: 'start',
   NORMAL: 'normal',
   ENEMY: 'enemy',
+  ELITE: 'elite',
   SHOP: 'shop',
   EVENT: 'event',
   BOSS: 'boss',
