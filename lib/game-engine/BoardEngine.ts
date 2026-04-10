@@ -1,16 +1,17 @@
-import { BoardTile, Enemy, TrapType } from './types';
-import { TILE_TYPES, TRAP_TYPES, GAME_CONFIG, getFloorInDungeon } from './constants';
+import { BoardTile, TrapType } from './types';
+import { TILE_TYPES, TRAP_TYPES, getFloorInDungeon } from './constants';
 import { EnemyEngine } from './EnemyEngine';
 
 // ─── Layout constants ────────────────────────────────────────────────────────
 const CENTER_X = 450;
 const CENTER_Y = 300;
-const RADIUS = 220;
+const CANVAS_W = 900;
+const CANVAS_H = 600;
 
-// Depth layout: tiles per row. Total = 15 tiles across 7 depths.
-// Rule: widths only go 1→2→3→2→3→2→1 so adjacent rows never differ by more than 1.
-// This guarantees connections are always to immediate neighbors — no crossing lines.
-const DEPTH_WIDTHS = [1, 2, 3, 2, 3, 2, 1];
+// Vein generation config
+const VEIN_DEPTHS = 8;          // number of depth layers (excluding start)
+const VEIN_TOTAL_NODES = 18;    // total interior nodes (excluding start + boss)
+const JITTER = 38;              // max px of organic position noise
 
 export class BoardEngine {
   static readonly BOSS_FLOOR_INDICES = [5, 10];
@@ -19,125 +20,181 @@ export class BoardEngine {
     return this.BOSS_FLOOR_INDICES.includes(getFloorInDungeon(floor));
   }
 
-  // ── Tile type generator ──────────────────────────────────────────────────
-  // Ensures no two tiles in the same row share the same type (no clusters).
-  private static pickRowTypes(count: number, depth: number): BoardTile['type'][] {
-    // Weighted pool — shop only once per row, elite is rare
-    const pool: BoardTile['type'][] = [
-      TILE_TYPES.ENEMY, TILE_TYPES.ENEMY,
-      TILE_TYPES.ELITE,
-      TILE_TYPES.EVENT,
-      TILE_TYPES.TRAP,
-      TILE_TYPES.NORMAL,
-    ];
-    // Force exactly one shop row at depth 3 (mid-point)
-    if (depth === 3) {
-      const shopRow: BoardTile['type'][] = [TILE_TYPES.SHOP];
-      const rest = pool.filter(t => t !== TILE_TYPES.SHOP);
-      while (shopRow.length < count) {
-        const pick = rest[Math.floor(Math.random() * rest.length)];
-        if (!shopRow.includes(pick)) shopRow.push(pick);
-      }
-      return shopRow.slice(0, count);
-    }
-    // Otherwise shuffle pool and pick `count` unique types
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    const unique: BoardTile['type'][] = [];
-    for (const t of shuffled) {
-      if (!unique.includes(t)) unique.push(t);
-      if (unique.length === count) break;
-    }
-    // Pad if needed
-    while (unique.length < count) unique.push(TILE_TYPES.NORMAL);
-    return unique;
-  }
+  // ── Vein node type assignment ────────────────────────────────────────────
+  // Assigns types organically: combat clusters early/mid, elites deeper,
+  // shops guaranteed once, traps near shortcuts, events scattered.
+  private static assignVeinTypes(
+    nodes: { depth: number }[],
+    isBoss: boolean,
+    totalDepths: number
+  ): BoardTile['type'][] {
+    const types: BoardTile['type'][] = new Array(nodes.length).fill(TILE_TYPES.NORMAL);
+    let shopPlaced = false;
 
-  private static makeTile(id: number, type: BoardTile['type'], x: number, y: number, depth: number, floor: number): BoardTile {
-    const trapTypes = Object.values(TRAP_TYPES) as TrapType[];
-    return {
-      id,
-      type,
-      x,
-      y,
-      depth,
-      visited: id === 0,
-      nextIds: [],
-      prevIds: [],
-      ...(type === TILE_TYPES.ENEMY && { enemy: EnemyEngine.generateEnemy(floor) }),
-      ...(type === TILE_TYPES.ELITE && { enemy: EnemyEngine.generateEliteEnemy(floor) }),
-      ...(type === TILE_TYPES.TRAP && {
-        trapType: trapTypes[Math.floor(Math.random() * trapTypes.length)],
-        trapTriggered: false,
-      }),
-    };
+    for (let i = 0; i < nodes.length; i++) {
+      const d = nodes[i].depth;
+      const progress = d / totalDepths; // 0 = shallow, 1 = deep
+
+      if (d === 0) { types[i] = TILE_TYPES.START; continue; }
+      if (d === totalDepths) { types[i] = isBoss ? TILE_TYPES.BOSS : TILE_TYPES.SHOP; continue; }
+
+      // Guarantee one shop in the mid-zone
+      if (!shopPlaced && progress >= 0.35 && progress <= 0.65 && Math.random() < 0.45) {
+        types[i] = TILE_TYPES.SHOP;
+        shopPlaced = true;
+        continue;
+      }
+
+      // Weighted pool shifts with depth
+      const r = Math.random();
+      if (progress > 0.6 && r < 0.22) { types[i] = TILE_TYPES.ELITE; continue; }
+      if (progress > 0.4 && r < 0.12) { types[i] = TILE_TYPES.TRAP; continue; }
+      if (r < 0.18) { types[i] = TILE_TYPES.EVENT; continue; }
+      if (r < 0.62) { types[i] = TILE_TYPES.ENEMY; continue; }
+      types[i] = TILE_TYPES.NORMAL;
+    }
+
+    // Ensure shop was placed somewhere
+    if (!shopPlaced) {
+      const midIdx = nodes.findIndex(n => {
+        const p = n.depth / totalDepths;
+        return p >= 0.3 && p <= 0.7;
+      });
+      if (midIdx !== -1) types[midIdx] = TILE_TYPES.SHOP;
+    }
+
+    return types;
   }
 
   /**
-   * Generate a clean branching board (DAG).
+   * Generate a full "vein network" board — pre-structured, organic, non-grid.
    *
-   * Layout rules:
-   *  - DEPTH_WIDTHS controls tiles per row: [1,2,3,2,3,2,1]
-   *  - Adjacent rows differ by at most 1 in width → no crossing lines
-   *  - Each tile connects only to its immediate column neighbors in the next row
-   *  - Each row has unique tile types (no clusters)
-   *  - Depth 0 = START, final depth = BOSS (or SHOP on non-boss floors)
+   * Algorithm:
+   *  1. Distribute VEIN_TOTAL_NODES across VEIN_DEPTHS layers (1–3 per layer, organic)
+   *  2. Place nodes with jitter for organic feel
+   *  3. Wire connections: each node connects to 1–3 nodes in the next layer
+   *     with occasional skip-connections (shortcuts) for vein-like branching
+   *  4. Assign types based on depth-weighted pools
+   *  5. Guarantee reachability: every node is reachable from start
    */
   static generateBoard(floor: number): BoardTile[] {
     const isBoss = this.isBossFloor(floor);
-    const tiles: BoardTile[] = [];
+    const trapTypes = Object.values(TRAP_TYPES) as TrapType[];
+    const totalDepths = VEIN_DEPTHS; // interior depths (0 = start, totalDepths = boss)
+
+    // ── Step 1: Decide node counts per depth layer ──────────────────────────
+    // Organic widths: start narrow, fan out, converge, fan out again, converge to boss
+    const depthWidths: number[] = [1]; // depth 0 = start
+    for (let d = 1; d < totalDepths; d++) {
+      const prev = depthWidths[d - 1];
+      // Organic variation: 1–3 nodes, biased toward 2
+      const options = prev === 1 ? [2, 2, 3] : prev === 3 ? [1, 2, 2] : [1, 2, 2, 3];
+      depthWidths.push(options[Math.floor(Math.random() * options.length)]);
+    }
+    depthWidths.push(1); // final depth = boss/shop
+
+    const allDepths = depthWidths.length; // totalDepths + 1 (includes boss layer)
+
+    // ── Step 2: Place nodes with organic jitter ──────────────────────────────
+    const marginX = 80;
+    const marginY = 60;
+    const usableH = CANVAS_H - marginY * 2;
+    const usableW = CANVAS_W - marginX * 2;
+    const depthSpacing = usableH / (allDepths - 1);
+
+    const depthNodes: number[][] = []; // depthNodes[d] = array of tile ids at depth d
+    const rawNodes: { id: number; depth: number; x: number; y: number }[] = [];
     let nextId = 0;
 
-    const totalDepths = DEPTH_WIDTHS.length;
-    const depthSpacing = (RADIUS * 2) / (totalDepths - 1);
-    const startY = CENTER_Y - RADIUS;
-
-    const depthTiles: number[][] = [];
-
-    for (let d = 0; d < totalDepths; d++) {
-      const count = DEPTH_WIDTHS[d];
-      const y = startY + d * depthSpacing;
+    for (let d = 0; d < allDepths; d++) {
+      const count = depthWidths[d];
+      const baseY = marginY + d * depthSpacing;
       const ids: number[] = [];
 
-      // Determine types for this row
-      let rowTypes: BoardTile['type'][];
-      if (d === 0) {
-        rowTypes = [TILE_TYPES.START];
-      } else if (d === totalDepths - 1) {
-        rowTypes = [isBoss ? TILE_TYPES.BOSS : TILE_TYPES.SHOP];
-      } else {
-        rowTypes = this.pickRowTypes(count, d);
-      }
-
       for (let col = 0; col < count; col++) {
-        // Evenly space tiles horizontally, centered on CENTER_X
-        const totalWidth = RADIUS * 1.5;
-        const x = count === 1
+        const baseX = count === 1
           ? CENTER_X
-          : CENTER_X - totalWidth / 2 + (col / (count - 1)) * totalWidth;
+          : marginX + (col / (count - 1)) * usableW;
 
-        const type = rowTypes[col];
-        const tile = this.makeTile(nextId, type, x, y, d, floor);
-        tiles.push(tile);
+        // Organic jitter (none on start/boss)
+        const jx = (d === 0 || d === allDepths - 1) ? 0 : (Math.random() - 0.5) * JITTER * 2;
+        const jy = (d === 0 || d === allDepths - 1) ? 0 : (Math.random() - 0.5) * JITTER;
+
+        rawNodes.push({ id: nextId, depth: d, x: Math.round(baseX + jx), y: Math.round(baseY + jy) });
         ids.push(nextId);
         nextId++;
       }
-
-      depthTiles.push(ids);
+      depthNodes.push(ids);
     }
 
-    // Wire connections — strictly adjacent columns only, no crossing
-    for (let d = 0; d < totalDepths - 1; d++) {
-      const fromIds = depthTiles[d];
-      const toIds = depthTiles[d + 1];
+    // ── Step 3: Assign types ─────────────────────────────────────────────────
+    const typeList = this.assignVeinTypes(
+      rawNodes.map(n => ({ depth: n.depth })),
+      isBoss,
+      allDepths - 1
+    );
+
+    // ── Step 4: Build BoardTile objects ──────────────────────────────────────
+    const tiles: BoardTile[] = rawNodes.map((n, i) => {
+      const type = typeList[i];
+      return {
+        id: n.id,
+        type,
+        x: n.x,
+        y: n.y,
+        depth: n.depth,
+        visited: n.id === 0,
+        nextIds: [],
+        prevIds: [],
+        ...(type === TILE_TYPES.ENEMY && { enemy: EnemyEngine.generateEnemy(floor) }),
+        ...(type === TILE_TYPES.ELITE && { enemy: EnemyEngine.generateEliteEnemy(floor) }),
+        ...(type === TILE_TYPES.TRAP && {
+          trapType: trapTypes[Math.floor(Math.random() * trapTypes.length)],
+          trapTriggered: false,
+        }),
+      };
+    });
+
+    // ── Step 5: Wire vein connections ────────────────────────────────────────
+    // Primary: each node connects to 1–2 nodes in the next depth layer
+    // Shortcut: ~20% chance a node also connects to a node 2 layers ahead (vein skip)
+    for (let d = 0; d < allDepths - 1; d++) {
+      const fromIds = depthNodes[d];
+      const toIds = depthNodes[d + 1];
 
       for (let fi = 0; fi < fromIds.length; fi++) {
-        const fromId = fromIds[fi];
-        const connections = this.adjacentConnections(fi, fromIds.length, toIds);
-        const fromTile = tiles.find(t => t.id === fromId)!;
-        fromTile.nextIds = connections;
+        const fromTile = tiles[fromIds[fi]];
+        const connections = this.veinConnections(fi, fromIds.length, toIds, tiles);
+
         for (const toId of connections) {
-          const toTile = tiles.find(t => t.id === toId)!;
-          if (!toTile.prevIds!.includes(fromId)) toTile.prevIds!.push(fromId);
+          if (!fromTile.nextIds!.includes(toId)) fromTile.nextIds!.push(toId);
+          const toTile = tiles[toId];
+          if (!toTile.prevIds!.includes(fromIds[fi])) toTile.prevIds!.push(fromIds[fi]);
+        }
+
+        // Shortcut connection: skip one depth layer (~20% chance, not on last 2 depths)
+        if (d < allDepths - 3 && Math.random() < 0.20) {
+          const skipIds = depthNodes[d + 2];
+          const skipTarget = skipIds[Math.floor(Math.random() * skipIds.length)];
+          if (!fromTile.nextIds!.includes(skipTarget)) {
+            fromTile.nextIds!.push(skipTarget);
+            const skipTile = tiles[skipTarget];
+            if (!skipTile.prevIds!.includes(fromIds[fi])) skipTile.prevIds!.push(fromIds[fi]);
+          }
+        }
+      }
+    }
+
+    // ── Step 6: Guarantee all nodes are reachable ────────────────────────────
+    // Any node with no prevIds (except start) gets connected from a random node in prev depth
+    for (let d = 1; d < allDepths; d++) {
+      for (const id of depthNodes[d]) {
+        const tile = tiles[id];
+        if (tile.prevIds!.length === 0) {
+          const prevDepthIds = depthNodes[d - 1];
+          const parent = tiles[prevDepthIds[Math.floor(Math.random() * prevDepthIds.length)]];
+          if (!parent.nextIds!.includes(id)) parent.nextIds!.push(id);
+          tile.prevIds!.push(parent.id);
         }
       }
     }
@@ -146,37 +203,34 @@ export class BoardEngine {
   }
 
   /**
-   * Connect tile at column `fromCol` (out of `fromCount`) to its immediate
-   * neighbors in the next row — strictly no skipping columns.
-   *
-   * Mapping rules (no crossing guaranteed because widths differ by ≤1):
-   *   same width  → connect to same col only (1:1)
-   *   narrower→wider (fan out) → left tile gets left+center, right tile gets center+right
-   *   wider→narrower (fan in)  → left+center tiles → left, center+right tiles → right
+   * Organic vein connection: each node connects to 1–2 adjacent nodes in the next layer.
+   * Avoids crossing by preferring column-aligned targets.
    */
-  private static adjacentConnections(fromCol: number, fromCount: number, toIds: number[]): number[] {
+  private static veinConnections(
+    fromCol: number,
+    fromCount: number,
+    toIds: number[],
+    tiles: BoardTile[]
+  ): number[] {
     const toCount = toIds.length;
-
+    if (toCount === 0) return [];
     if (toCount === 1) return [toIds[0]];
-    if (fromCount === toCount) return [toIds[fromCol]]; // 1:1 same width
 
-    if (toCount > fromCount) {
-      // Fan out: 1→2, 2→3
-      if (fromCount === 1) return [...toIds]; // single tile fans to all
-      // 2→3: left→[0,1], right→[1,2]
-      return fromCol === 0 ? [toIds[0], toIds[1]] : [toIds[toCount - 2], toIds[toCount - 1]];
-    } else {
-      // Fan in: 3→2, 2→1
-      if (toCount === 1) return [toIds[0]];
-      // 3→2: col0→[0], col1→[0,1], col2→[1]
-      if (fromCount === 3) {
-        if (fromCol === 0) return [toIds[0]];
-        if (fromCol === 1) return [toIds[0], toIds[1]];
-        return [toIds[1]];
-      }
-      // 2→1 fallback
-      return [toIds[Math.min(fromCol, toCount - 1)]];
+    // Map fromCol to a proportional position in toIds
+    const ratio = fromCount === 1 ? 0.5 : fromCol / (fromCount - 1);
+    const centerIdx = Math.round(ratio * (toCount - 1));
+
+    // Connect to center + maybe one neighbor (organic branching)
+    const result: number[] = [toIds[centerIdx]];
+    const addNeighbor = Math.random() < 0.55; // 55% chance of 2 connections
+    if (addNeighbor) {
+      const neighborIdx = Math.random() < 0.5
+        ? Math.max(0, centerIdx - 1)
+        : Math.min(toCount - 1, centerIdx + 1);
+      if (!result.includes(toIds[neighborIdx])) result.push(toIds[neighborIdx]);
     }
+
+    return result;
   }
 
   /**
@@ -236,42 +290,12 @@ export class BoardEngine {
   }
 
   /**
-   * Reshuffle non-fixed tiles (called on floor completion / lap).
-   * Preserves START and BOSS tiles; re-rolls everything else.
+   * Reshuffle non-fixed tiles (called on floor completion).
+   * Regenerates the full vein network for the new floor.
    */
   static reshuffleBoard(board: BoardTile[], floor: number): BoardTile[] {
-    const isBoss = this.isBossFloor(floor);
-    const trapTypes = Object.values(TRAP_TYPES) as TrapType[];
-
-    // Group tiles by depth so we can re-pick unique types per row
-    const maxDepth = Math.max(...board.map(t => t.depth ?? 0));
-    const newTypesByDepth: Map<number, BoardTile['type'][]> = new Map();
-    for (let d = 1; d < maxDepth; d++) {
-      const count = board.filter(t => (t.depth ?? 0) === d).length;
-      newTypesByDepth.set(d, this.pickRowTypes(count, d));
-    }
-
-    return board.map((tile) => {
-      if (tile.type === TILE_TYPES.START) return { ...tile, visited: true };
-      if (tile.type === TILE_TYPES.BOSS) return { ...tile, visited: false };
-
-      const depth = tile.depth ?? 1;
-      const rowTiles = board.filter(t => (t.depth ?? 0) === depth);
-      const colIdx = rowTiles.findIndex(t => t.id === tile.id);
-      const rowTypes = newTypesByDepth.get(depth) ?? [TILE_TYPES.NORMAL];
-      const type = isBoss ? TILE_TYPES.BOSS : (rowTypes[colIdx] ?? TILE_TYPES.NORMAL);
-
-      return {
-        ...tile,
-        type,
-        visited: false,
-        enemy: type === TILE_TYPES.ENEMY ? EnemyEngine.generateEnemy(floor)
-          : type === TILE_TYPES.ELITE ? EnemyEngine.generateEliteEnemy(floor)
-          : undefined,
-        trapType: type === TILE_TYPES.TRAP ? trapTypes[Math.floor(Math.random() * trapTypes.length)] : undefined,
-        trapTriggered: type === TILE_TYPES.TRAP ? false : undefined,
-      };
-    });
+    // Just regenerate — the vein system is fully procedural per floor
+    return this.generateBoard(floor);
   }
 
   // Legacy helpers kept for compatibility

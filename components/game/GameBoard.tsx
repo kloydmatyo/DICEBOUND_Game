@@ -69,6 +69,7 @@ export default function GameBoard({
     return () => window.removeEventListener('resize', update);
   }, []);
 
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -77,17 +78,38 @@ export default function GameBoard({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const currentTile = tiles.find(t => t.id === currentPosition);
     if (!currentTile?.nextIds) return;
+
+    // Draw lines from current tile to immediate next tiles
     for (const nextId of currentTile.nextIds) {
       const next = tiles.find(t => t.id === nextId);
       if (!next) continue;
       const highlighted = choosableTileIds.includes(nextId);
-      ctx.strokeStyle = highlighted ? 'rgba(255,215,0,0.9)' : 'rgba(78,205,196,0.35)';
-      ctx.lineWidth = highlighted ? 3 * scale : 2 * scale;
-      ctx.setLineDash(highlighted ? [] : [8 * scale, 4 * scale]);
+      ctx.strokeStyle = highlighted ? 'rgba(255,215,0,0.95)' : 'rgba(78,205,196,0.4)';
+      ctx.lineWidth = highlighted ? 3.5 * scale : 2 * scale;
+      ctx.setLineDash(highlighted ? [] : [6 * scale, 5 * scale]);
+      ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(currentTile.x * scale, currentTile.y * scale);
       ctx.lineTo(next.x * scale, next.y * scale);
       ctx.stroke();
+    }
+
+    // Draw visited trail
+    const visitedSet = new Set(tiles.filter(t => t.visited).map(t => t.id));
+    for (const tile of tiles) {
+      if (!visitedSet.has(tile.id) || !tile.nextIds) continue;
+      for (const nextId of tile.nextIds) {
+        if (!visitedSet.has(nextId)) continue;
+        const next = tiles.find(t => t.id === nextId);
+        if (!next) continue;
+        ctx.strokeStyle = 'rgba(255,215,0,0.25)';
+        ctx.lineWidth = 2 * scale;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(tile.x * scale, tile.y * scale);
+        ctx.lineTo(next.x * scale, next.y * scale);
+        ctx.stroke();
+      }
     }
     ctx.setLineDash([]);
   }, [tiles, scale, choosableTileIds, currentPosition]);
