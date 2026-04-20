@@ -73,9 +73,12 @@ export default function GamePage() {
   };
 
   // â”€â”€ Character selection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const handleCharacterSelect = (characterClass: CharacterClass, name: string) => {
+  const handleCharacterSelect = (characterClass: CharacterClass, name: string, spriteDataUrl?: string) => {
     const newGameState = GameEngine.initializeGame(characterClass);
     const newUpgradeState = WeaponUpgradeEngine.createInitialState();
+    if (spriteDataUrl) {
+      (newGameState.player as any).spriteDataUrl = spriteDataUrl;
+    }
     setPlayerName(name);
     setGameState(newGameState);
     setUpgradeState(newUpgradeState);
