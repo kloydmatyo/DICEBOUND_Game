@@ -111,7 +111,8 @@ export default function CharacterSelection({ onSelect }: CharacterSelectionProps
                   </button>
                   {spriteDataUrl && (
                     <div className="flex items-center gap-2">
-                      <img
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
                         src={spriteDataUrl}
                         alt="Your character"
                         style={{ imageRendering: 'pixelated', height: '48px' }}

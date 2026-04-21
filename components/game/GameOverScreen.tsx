@@ -156,7 +156,7 @@ export default function GameOverScreen({
               <span className="font-bold text-lg">
                 {playerRank === 1 ? 'New #1!' : `Rank #${playerRank}`}
               </span>
-              {playerRank === 1 && <span className="ml-2 text-sm">You're at the top of the board!</span>}
+              {playerRank === 1 && <span className="ml-2 text-sm">You&apos;re at the top of the board!</span>}
             </motion.div>
           )}
         </AnimatePresence>
@@ -170,7 +170,7 @@ export default function GameOverScreen({
           </div>
 
           {leaderboard.length === 0 && !loading ? (
-            <div className="px-4 py-6 text-center text-gray-500 text-sm">No scores yet — you're the first!</div>
+            <div className="px-4 py-6 text-center text-gray-500 text-sm">No scores yet — you&apos;re the first!</div>
           ) : (
             <div className="divide-y divide-gray-800">
               {leaderboard.map((entry, i) => {
