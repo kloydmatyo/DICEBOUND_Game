@@ -41,7 +41,7 @@ export default function Home() {
           transition={{ delay: 0.3 }}
           className="text-2xl md:text-3xl text-game-gold mb-2"
         >
-          Roguelike Board Game RPG
+          Roguelike Board Game rpg
         </motion.p>
 
         <motion.p
