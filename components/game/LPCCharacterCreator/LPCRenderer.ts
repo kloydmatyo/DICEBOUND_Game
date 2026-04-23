@@ -72,7 +72,8 @@ function getSpritePath(
     : animName === 'halfslash' ? 'halfslash'
     : animName;
   const variantFile = variantToFilename(variant);
-  return `/spritesheets/${basePath}${animFolder}/${variantFile}.png`;
+  const base = process.env.NEXT_PUBLIC_SPRITES_BASE_URL || '/spritesheets';
+  return `${base}/${basePath}${animFolder}/${variantFile}.png`;
 }
 
 function animSupported(meta: ItemMeta, animName: string): boolean {
