@@ -18,6 +18,20 @@ function pickBehavior(type: string): EnemyBehavior {
   return pool[randomInt(0, pool.length - 1)];
 }
 
+/** Negotiation traits per behavior — determines which alternative resolutions are available */
+function getNegotiationTraits(behavior: EnemyBehavior): { canBeBribed: boolean; canBeIntimidated: boolean; willAcceptTruce: boolean } {
+  switch (behavior) {
+    case 'berserker':    return { canBeBribed: false, canBeIntimidated: false, willAcceptTruce: false };
+    case 'glass_cannon': return { canBeBribed: false, canBeIntimidated: true,  willAcceptTruce: false };
+    case 'regenerator':  return { canBeBribed: true,  canBeIntimidated: false, willAcceptTruce: true  };
+    case 'defender':     return { canBeBribed: true,  canBeIntimidated: false, willAcceptTruce: true  };
+    case 'poisoner':     return { canBeBribed: true,  canBeIntimidated: true,  willAcceptTruce: false };
+    case 'enrager':      return { canBeBribed: false, canBeIntimidated: false, willAcceptTruce: false };
+    case 'normal':
+    default:             return { canBeBribed: true,  canBeIntimidated: true,  willAcceptTruce: true  };
+  }
+}
+
 function behaviorName(behavior: EnemyBehavior): string {
   switch (behavior) {
     case 'berserker':   return 'Berserker';
@@ -79,6 +93,8 @@ export class EnemyEngine {
       defense = Math.floor(defense * 0.5);
     }
 
+    const traits = getNegotiationTraits(behavior);
+
     return {
       id: `enemy-${Date.now()}-${Math.random()}`,
       type,
@@ -90,6 +106,7 @@ export class EnemyEngine {
       coinReward: Math.floor(baseStats.coinReward * floorMultiplier),
       statusEffects: [],
       behavior,
+      ...traits,
     };
   }
 
@@ -120,6 +137,7 @@ export class EnemyEngine {
         statusEffects: [],
         behavior: 'enrager',
         enraged: false,
+        ...getNegotiationTraits('enrager'),
       };
     }
     // Generic fallback
@@ -136,6 +154,7 @@ export class EnemyEngine {
       statusEffects: [],
       behavior: 'enrager',
       enraged: false,
+      ...getNegotiationTraits('enrager'),
     };
   }
 

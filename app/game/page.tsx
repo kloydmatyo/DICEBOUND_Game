@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import {
@@ -10,6 +10,7 @@ import {
   BoardTile,
   EnemyEngine,
   Enemy,
+  CombatEngine,
   getStatUpgradeItems,
   incrementStatCount,
 } from '@/lib/game-engine';
@@ -305,21 +306,55 @@ export default function GamePage() {
 
   const handleFlee = () => {
     if (!gameState || !gameState.currentEnemy) return;
-    const success = Math.random() < 0.5;
-    if (success) {
-      setGameState(GameEngine.endCombat(gameState));
+    const { state: newState, result } = GameEngine.executeFleeAttempt(gameState);
+    setGameState(newState);
+    setCombatLog((prev) => [...prev, ...result.messages]);
+
+    if (result.isPlayerVictory) {
       setPhase('playing');
       setCombatLog([]);
       setCombatEnemy(null);
-      showNotification('ðŸƒ You fled successfully!');
+      showNotification('🏃 You fled successfully!');
     } else {
-      const penalty = Math.floor(gameState.player.maxHealth * 0.1);
-      const newHealth = Math.max(1, gameState.player.health - penalty);
-      setGameState({ ...gameState, player: { ...gameState.player, health: newHealth } });
-      setCombatLog((prev) => [...prev, `Failed to flee! Lost ${penalty} HP.`]);
-      showNotification(`ðŸƒ Flee failed! Lost ${penalty} HP.`);
-    SaveEngine.clear();
-      if (newHealth <= 0) setTimeout(() => setPhase('game-over'), 1000);
+      showNotification('🏃 Flee failed!');
+      SaveEngine.clear();
+      if (GameEngine.isGameOver(newState)) setTimeout(() => setPhase('game-over'), 1000);
+    }
+  };
+
+  const handleBribe = () => {
+    if (!gameState || !gameState.currentEnemy) return;
+    const { state: newState, result } = GameEngine.executeBribeAttempt(gameState);
+    setGameState(newState);
+    setCombatLog((prev) => [...prev, ...result.messages]);
+
+    if (result.isPlayerVictory) {
+      setPhase('playing');
+      setCombatLog([]);
+      setCombatEnemy(null);
+      showNotification(`💰 Bribe accepted! Paid ${result.bribeCost} coins.`);
+    } else {
+      showNotification('💰 Bribe failed!');
+      SaveEngine.clear();
+      if (GameEngine.isGameOver(newState)) setTimeout(() => setPhase('game-over'), 1000);
+    }
+  };
+
+  const handleTruce = () => {
+    if (!gameState || !gameState.currentEnemy) return;
+    const { state: newState, result } = GameEngine.executeTruceAttempt(gameState);
+    setGameState(newState);
+    setCombatLog((prev) => [...prev, ...result.messages]);
+
+    if (result.isPlayerVictory) {
+      setPhase('playing');
+      setCombatLog([]);
+      setCombatEnemy(null);
+      showNotification(`🤝 Truce! Earned ${result.coinsEarned} coins.`);
+    } else {
+      showNotification('🤝 Truce rejected!');
+      SaveEngine.clear();
+      if (GameEngine.isGameOver(newState)) setTimeout(() => setPhase('game-over'), 1000);
     }
   };
 
@@ -548,6 +583,7 @@ export default function GamePage() {
             currentPosition={gameState.player.position}
             choosableTileIds={choosableTileIds}
             onTileClick={(pendingChoice && !pendingChoice.destinyResult) ? handleTileChosen : undefined}
+            playerSpriteUrl={(gameState.player as any).spriteDataUrl}
           />
         </div>
       </div>
@@ -572,7 +608,21 @@ export default function GamePage() {
       {/* Combat UI */}
       <AnimatePresence>
         {phase === 'combat' && combatEnemy && (
-          <CombatUI player={gameState.player} enemy={gameState.currentEnemy ?? combatEnemy} onAttack={handleAttack} onUseSkill={handleUseSkill} onFlee={handleFlee} combatLog={combatLog} isPlayerTurn={true} enemyAnimState={enemyAnimState} playerHurt={playerHurt} />
+          <CombatUI
+            player={gameState.player}
+            enemy={gameState.currentEnemy ?? combatEnemy}
+            onAttack={handleAttack}
+            onUseSkill={handleUseSkill}
+            onFlee={handleFlee}
+            onBribe={gameState.currentEnemy?.canBeBribed && gameState.player.coins >= CombatEngine.getBribeCost(gameState.currentEnemy) ? handleBribe : undefined}
+            onTruce={gameState.currentEnemy?.willAcceptTruce ? handleTruce : undefined}
+            bribeCost={gameState.currentEnemy ? CombatEngine.getBribeCost(gameState.currentEnemy) : undefined}
+            combatLog={combatLog}
+            isPlayerTurn={true}
+            enemyAnimState={enemyAnimState}
+            playerHurt={playerHurt}
+            playerSpriteUrl={(gameState.player as any).spriteDataUrl}
+          />
         )}
       </AnimatePresence>
 

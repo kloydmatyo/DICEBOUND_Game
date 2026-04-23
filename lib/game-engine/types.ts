@@ -48,6 +48,10 @@ export interface Enemy {
   behavior: EnemyBehavior;
   /** True once a boss has triggered its enrage phase */
   enraged?: boolean;
+  /** Negotiation traits — set automatically based on behavior */
+  canBeBribed?: boolean;
+  canBeIntimidated?: boolean;
+  willAcceptTruce?: boolean;
 }
 
 export interface BoardTile {
@@ -154,6 +158,8 @@ export interface StatusEffect {
 }
 
 export interface CombatResult {
+  /** How the combat was resolved — set on victory/resolution */
+  resolutionType?: 'kill' | 'escape' | 'truce' | 'surrender' | 'bribe';
   playerDamage: number;
   enemyDamage: number;
   playerHealth: number;
@@ -171,6 +177,8 @@ export interface CombatResult {
   /** Relic side-effects — applied by GameEngine after the turn */
   relicVampiricHeal?: number;
   relicBonusCoins?: number;
+  /** Cost paid for bribe resolution */
+  bribeCost?: number;
 }
 
 export interface GameState {

@@ -7,7 +7,7 @@ import LPCItemPicker from './LPCItemPicker';
 import { extractWalkPreviewFrame } from './LPCRenderer';
 
 interface Props {
-  onConfirm: (spriteDataUrl: string) => void;
+  onConfirm: (spriteDataUrl: string, fullSheetDataUrl?: string) => void;
 }
 
 const PREVIEW_ANIMATIONS = ['walk', 'idle', 'slash', 'spellcast', 'run'];
@@ -30,7 +30,8 @@ export default function LPCCharacterCreator({ onConfirm }: Props) {
   function handleConfirm() {
     if (!canvasRef.current) return;
     const dataUrl = extractWalkPreviewFrame(canvasRef.current, 1);
-    onConfirm(dataUrl);
+    const fullSheet = canvasRef.current.toDataURL('image/png');
+    onConfirm(dataUrl, fullSheet);
   }
 
   if (!metadataReady) {

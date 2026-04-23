@@ -9,6 +9,7 @@ interface GameBoardProps {
   currentPosition: number;
   choosableTileIds?: number[];
   onTileClick?: (tileId: number) => void;
+  playerSpriteUrl?: string;
 }
 
 const TILE_COLOR: Record<string, string> = {
@@ -47,6 +48,7 @@ export default function GameBoard({
   currentPosition,
   choosableTileIds = [],
   onTileClick,
+  playerSpriteUrl,
 }: GameBoardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -188,10 +190,23 @@ export default function GameBoard({
           <motion.div
             animate={{ y: [-4, 4, -4] }}
             transition={{ repeat: Infinity, duration: 1.6, ease: 'easeInOut' }}
-            style={{ fontSize: Math.max(20, 28 * scale) }}
             className="drop-shadow-lg select-none"
           >
-            {String.fromCodePoint(0x1F464)}
+            {playerSpriteUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={playerSpriteUrl}
+                alt="player"
+                style={{
+                  width: Math.max(28, 36 * scale),
+                  height: Math.max(28, 36 * scale),
+                  imageRendering: 'pixelated',
+                  objectFit: 'contain',
+                }}
+              />
+            ) : (
+              <span style={{ fontSize: Math.max(20, 28 * scale) }}>{String.fromCodePoint(0x1F464)}</span>
+            )}
           </motion.div>
         </motion.div>
       </div>

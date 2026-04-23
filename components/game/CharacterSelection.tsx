@@ -115,7 +115,7 @@ export default function CharacterSelection({ onSelect }: CharacterSelectionProps
                     <img
                         src={spriteDataUrl}
                         alt="Your character"
-                        style={{ imageRendering: 'pixelated', height: '48px' }}
+                        style={{ imageRendering: 'pixelated', height: '48px', width: '48px' }}
                         className="rounded"
                       />
                       <span className="text-xs text-gray-400">Your character</span>

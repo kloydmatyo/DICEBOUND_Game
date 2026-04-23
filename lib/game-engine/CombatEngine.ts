@@ -187,6 +187,7 @@ export class CombatEngine {
       isEnemyDefeated,
       coinsEarned,
       messages,
+      resolutionType: isPlayerVictory ? 'kill' : undefined,
       updatedPlayerMana,
       updatedEnemyStatusEffects,
       // Behavior side-effects for GameEngine to apply
@@ -362,5 +363,218 @@ export class CombatEngine {
    */
   static applyCritical(damage: number, critMultiplier = 2.0): number {
     return Math.floor(damage * critMultiplier);
+  }
+
+  // ── Alternative Resolution Methods ─────────────────────────────────────
+
+  /**
+   * Attempt to flee from combat.
+   * Base 40% chance, modified by ATK difference and enemy behavior.
+   * On failure the enemy gets a free hit.
+   */
+  static attemptFlee(player: Player, enemy: Enemy): CombatResult {
+    const messages: string[] = [];
+    let fleeChance = 0.4;
+
+    // Speed advantage: use attack difference as proxy (±5% per point)
+    const atkDiff = player.attack - enemy.attack;
+    fleeChance += atkDiff * 0.05;
+
+    // Berserkers and bosses are harder to escape
+    if (enemy.behavior === 'berserker' || enemy.behavior === 'enrager') {
+      fleeChance -= 0.2;
+    }
+
+    // Glass cannons are easier to outrun
+    if (enemy.behavior === 'glass_cannon') {
+      fleeChance += 0.15;
+    }
+
+    fleeChance = Math.max(0.05, Math.min(0.85, fleeChance));
+
+    if (Math.random() < fleeChance) {
+      messages.push('🏃 You escaped successfully!');
+      return {
+        resolutionType: 'escape',
+        playerDamage: 0,
+        enemyDamage: 0,
+        playerHealth: player.health,
+        enemyHealth: enemy.health,
+        isPlayerVictory: true,
+        isEnemyDefeated: false,
+        coinsEarned: 0,
+        messages,
+      };
+    }
+
+    // Failed: enemy gets a free hit
+    const enemyDamage = this.calculateDamage(enemy.attack, player.defense);
+    const newPlayerHealth = Math.max(0, player.health - enemyDamage);
+    messages.push(`🏃 Failed to flee! ${enemy.name} strikes for ${enemyDamage} damage!`);
+
+    return {
+      resolutionType: undefined,
+      playerDamage: 0,
+      enemyDamage,
+      playerHealth: newPlayerHealth,
+      enemyHealth: enemy.health,
+      isPlayerVictory: false,
+      isEnemyDefeated: false,
+      coinsEarned: 0,
+      messages,
+    };
+  }
+
+  /**
+   * Attempt to bribe the enemy.
+   * Requires enemy.canBeBribed and sufficient coins (2× coinReward).
+   * On failure the enemy attacks and coins are NOT deducted.
+   */
+  static attemptBribe(player: Player, enemy: Enemy): CombatResult {
+    const messages: string[] = [];
+    const bribeCost = enemy.coinReward * 2;
+
+    if (!enemy.canBeBribed) {
+      const enemyDamage = this.calculateDamage(enemy.attack, player.defense);
+      const newPlayerHealth = Math.max(0, player.health - enemyDamage);
+      messages.push(`💰 ${enemy.name} is insulted by your bribe! Attacks for ${enemyDamage} damage!`);
+      return {
+        resolutionType: undefined,
+        playerDamage: 0,
+        enemyDamage,
+        playerHealth: newPlayerHealth,
+        enemyHealth: enemy.health,
+        isPlayerVictory: false,
+        isEnemyDefeated: false,
+        coinsEarned: 0,
+        messages,
+      };
+    }
+
+    if (player.coins < bribeCost) {
+      messages.push(`💰 Not enough coins to bribe! Need ${bribeCost} coins.`);
+      return {
+        resolutionType: undefined,
+        playerDamage: 0,
+        enemyDamage: 0,
+        playerHealth: player.health,
+        enemyHealth: enemy.health,
+        isPlayerVictory: false,
+        isEnemyDefeated: false,
+        coinsEarned: 0,
+        messages,
+      };
+    }
+
+    // Success chance: 70% base, +15% if enemy HP < 50%
+    let successChance = 0.7;
+    if (enemy.health < enemy.maxHealth * 0.5) successChance += 0.15;
+    successChance = Math.min(0.95, successChance);
+
+    if (Math.random() < successChance) {
+      messages.push(`💰 ${enemy.name} accepts your bribe of ${bribeCost} coins and walks away!`);
+      return {
+        resolutionType: 'bribe',
+        playerDamage: 0,
+        enemyDamage: 0,
+        playerHealth: player.health,
+        enemyHealth: enemy.health,
+        isPlayerVictory: true,
+        isEnemyDefeated: false,
+        coinsEarned: 0,
+        messages,
+        bribeCost,
+      };
+    }
+
+    // Failed: enemy attacks, coins NOT deducted
+    const enemyDamage = this.calculateDamage(enemy.attack, player.defense);
+    const newPlayerHealth = Math.max(0, player.health - enemyDamage);
+    messages.push(`💰 ${enemy.name} takes your offer but attacks anyway for ${enemyDamage} damage!`);
+
+    return {
+      resolutionType: undefined,
+      playerDamage: 0,
+      enemyDamage,
+      playerHealth: newPlayerHealth,
+      enemyHealth: enemy.health,
+      isPlayerVictory: false,
+      isEnemyDefeated: false,
+      coinsEarned: 0,
+      messages,
+    };
+  }
+
+  /**
+   * Attempt a truce with the enemy.
+   * Requires enemy.willAcceptTruce. Partial coin reward on success.
+   * On failure the enemy attacks.
+   */
+  static attemptTruce(player: Player, enemy: Enemy): CombatResult {
+    const messages: string[] = [];
+
+    if (!enemy.willAcceptTruce) {
+      const enemyDamage = this.calculateDamage(enemy.attack, player.defense);
+      const newPlayerHealth = Math.max(0, player.health - enemyDamage);
+      messages.push(`🤝 ${enemy.name} refuses your truce and attacks for ${enemyDamage} damage!`);
+      return {
+        resolutionType: undefined,
+        playerDamage: 0,
+        enemyDamage,
+        playerHealth: newPlayerHealth,
+        enemyHealth: enemy.health,
+        isPlayerVictory: false,
+        isEnemyDefeated: false,
+        coinsEarned: 0,
+        messages,
+      };
+    }
+
+    // Success chance: 50% base, +20% if enemy HP < 30%, +10% if player HP < 30%
+    let successChance = 0.5;
+    if (enemy.health < enemy.maxHealth * 0.3) successChance += 0.2;
+    if (player.health < player.maxHealth * 0.3) successChance += 0.1;
+    successChance = Math.min(0.9, successChance);
+
+    const partialReward = Math.floor(enemy.coinReward * 0.5);
+
+    if (Math.random() < successChance) {
+      messages.push(`🤝 ${enemy.name} agrees to a truce! You earn ${partialReward} coins.`);
+      return {
+        resolutionType: 'truce',
+        playerDamage: 0,
+        enemyDamage: 0,
+        playerHealth: player.health,
+        enemyHealth: enemy.health,
+        isPlayerVictory: true,
+        isEnemyDefeated: false,
+        coinsEarned: partialReward,
+        messages,
+      };
+    }
+
+    // Failed: enemy attacks
+    const enemyDamage = this.calculateDamage(enemy.attack, player.defense);
+    const newPlayerHealth = Math.max(0, player.health - enemyDamage);
+    messages.push(`🤝 ${enemy.name} rejects your truce and attacks for ${enemyDamage} damage!`);
+
+    return {
+      resolutionType: undefined,
+      playerDamage: 0,
+      enemyDamage,
+      playerHealth: newPlayerHealth,
+      enemyHealth: enemy.health,
+      isPlayerVictory: false,
+      isEnemyDefeated: false,
+      coinsEarned: 0,
+      messages,
+    };
+  }
+
+  /**
+   * Calculate the bribe cost for a given enemy.
+   */
+  static getBribeCost(enemy: Enemy): number {
+    return enemy.coinReward * 2;
   }
 }

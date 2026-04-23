@@ -31,6 +31,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   if (imageCache[src]) return Promise.resolve(imageCache[src]);
   return new Promise((resolve, reject) => {
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.onload = () => { imageCache[src] = img; resolve(img); };
     img.onerror = () => reject(new Error(`Failed to load ${src}`));
     img.src = src;
@@ -140,29 +141,74 @@ export async function renderCharacterToCanvas(
   }
 }
 
-// Extract a single animation row (4 directions) as a data URL for preview
+// Extract the south-facing (front) walk frame as a data URL for preview
 export function extractWalkPreviewFrame(
   canvas: HTMLCanvasElement,
   frameIndex: number = 1
 ): string {
   const frameSize = FRAME_SIZE;
   const walkRowStart = 8; // walk starts at row 8
-  const numDirections = 4;
+  const SOUTH_DIR = 2;   // 0=N, 1=W, 2=S, 3=E
 
   const out = document.createElement('canvas');
-  out.width = frameSize * numDirections;
+  out.width = frameSize;
   out.height = frameSize;
   const ctx = out.getContext('2d')!;
   ctx.imageSmoothingEnabled = false;
 
-  for (let dir = 0; dir < numDirections; dir++) {
-    ctx.drawImage(
-      canvas,
-      frameIndex * frameSize, (walkRowStart + dir) * frameSize, frameSize, frameSize,
-      dir * frameSize, 0, frameSize, frameSize
-    );
-  }
+  ctx.drawImage(
+    canvas,
+    frameIndex * frameSize, (walkRowStart + SOUTH_DIR) * frameSize, frameSize, frameSize,
+    0, 0, frameSize, frameSize
+  );
   return out.toDataURL('image/png');
+}
+
+/**
+ * Extract a single animation row (one direction) as a horizontal sprite strip.
+ * Used by PlayerSprite to animate the character in-game.
+ *
+ * @param sheetDataUrl - full spritesheet data URL
+ * @param animName     - animation name (e.g. 'walk', 'slash', 'idle', 'hurt')
+ * @param direction    - 0=up, 1=left, 2=down, 3=right
+ * @param frameCount   - number of frames in the strip (default 9 for walk, 13 for sheet width)
+ */
+export function extractAnimationStrip(
+  sheetDataUrl: string,
+  animName: string,
+  direction: number = 2,
+  frameCount: number = 9
+): Promise<string> {
+  const animYOffset = ANIMATION_OFFSETS[animName];
+  if (animYOffset === undefined) return Promise.resolve('');
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const rowY = animYOffset + direction * FRAME_SIZE;
+      const out = document.createElement('canvas');
+      out.width = FRAME_SIZE * frameCount;
+      out.height = FRAME_SIZE;
+      const ctx = out.getContext('2d')!;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(
+        img,
+        0, rowY, FRAME_SIZE * frameCount, FRAME_SIZE,
+        0, 0, FRAME_SIZE * frameCount, FRAME_SIZE
+      );
+      resolve(out.toDataURL('image/png'));
+    };
+    img.onerror = () => resolve('');
+    img.src = sheetDataUrl;
+  });
+}
+
+/**
+ * Export the full rendered spritesheet as a data URL.
+ */
+export function exportFullSheet(canvas: HTMLCanvasElement): string {
+  return canvas.toDataURL('image/png');
 }
 
 export { FRAME_SIZE, SHEET_WIDTH, SHEET_HEIGHT, ANIMATION_OFFSETS };

@@ -330,6 +330,99 @@ export class GameEngine {
     };
   }
 
+  // ── Alternative combat resolution methods ──────────────────────────────
+
+  /**
+   * Attempt to flee from combat. On success, combat ends with no reward.
+   * On failure, enemy gets a free hit.
+   */
+  static executeFleeAttempt(state: GameState): { state: GameState; result: CombatResult } {
+    if (!state.currentEnemy) throw new Error('No enemy in combat!');
+
+    const result = CombatEngine.attemptFlee(state.player, state.currentEnemy);
+
+    let updatedPlayer = {
+      ...state.player,
+      health: result.playerHealth,
+      coins: state.player.coins + result.coinsEarned,
+    };
+
+    if (result.isPlayerVictory) {
+      // Flee succeeded — end combat
+      return {
+        state: { ...state, player: updatedPlayer, currentEnemy: null, isInCombat: false, activeCombatDestiny: null },
+        result,
+      };
+    }
+
+    // Flee failed — combat continues
+    return {
+      state: { ...state, player: updatedPlayer },
+      result,
+    };
+  }
+
+  /**
+   * Attempt to bribe the enemy. On success, coins are deducted and combat ends.
+   * On failure, enemy attacks and coins are NOT deducted.
+   */
+  static executeBribeAttempt(state: GameState): { state: GameState; result: CombatResult } {
+    if (!state.currentEnemy) throw new Error('No enemy in combat!');
+
+    const result = CombatEngine.attemptBribe(state.player, state.currentEnemy);
+
+    let updatedPlayer = {
+      ...state.player,
+      health: result.playerHealth,
+      coins: state.player.coins + result.coinsEarned,
+    };
+
+    if (result.isPlayerVictory && result.bribeCost) {
+      // Bribe succeeded — deduct coins and end combat
+      updatedPlayer = { ...updatedPlayer, coins: updatedPlayer.coins - result.bribeCost };
+      return {
+        state: { ...state, player: updatedPlayer, currentEnemy: null, isInCombat: false, activeCombatDestiny: null },
+        result,
+      };
+    }
+
+    // Bribe failed — combat continues
+    return {
+      state: { ...state, player: updatedPlayer },
+      result,
+    };
+  }
+
+  /**
+   * Attempt a truce with the enemy. On success, partial coin reward and combat ends.
+   * On failure, enemy attacks.
+   */
+  static executeTruceAttempt(state: GameState): { state: GameState; result: CombatResult } {
+    if (!state.currentEnemy) throw new Error('No enemy in combat!');
+
+    const result = CombatEngine.attemptTruce(state.player, state.currentEnemy);
+
+    let updatedPlayer = {
+      ...state.player,
+      health: result.playerHealth,
+      coins: state.player.coins + result.coinsEarned,
+    };
+
+    if (result.isPlayerVictory) {
+      // Truce succeeded — end combat with partial reward
+      return {
+        state: { ...state, player: updatedPlayer, currentEnemy: null, isInCombat: false, activeCombatDestiny: null, enemiesKilled: state.enemiesKilled },
+        result,
+      };
+    }
+
+    // Truce failed — combat continues
+    return {
+      state: { ...state, player: updatedPlayer },
+      result,
+    };
+  }
+
   static endCombat(state: GameState): GameState {
     return { ...state, isInCombat: false, currentEnemy: null, activeCombatDestiny: null };
   }

@@ -57,10 +57,14 @@ interface CombatUIProps {
   onAttack: () => void;
   onUseSkill: (skillId: string) => void;
   onFlee?: () => void;
+  onBribe?: () => void;
+  onTruce?: () => void;
+  bribeCost?: number;
   combatLog: string[];
   isPlayerTurn: boolean;
   enemyAnimState?: EnemyAnimState;
   playerHurt?: boolean;
+  playerSpriteUrl?: string;
 }
 
 export default function CombatUI({
@@ -69,10 +73,14 @@ export default function CombatUI({
   onAttack,
   onUseSkill,
   onFlee,
+  onBribe,
+  onTruce,
+  bribeCost,
   combatLog,
   isPlayerTurn,
   enemyAnimState = 'Idle',
   playerHurt = false,
+  playerSpriteUrl,
 }: CombatUIProps) {
   const isAnimating = enemyAnimState !== 'Idle';
   const actionsDisabled = !isPlayerTurn || isAnimating;
@@ -126,9 +134,18 @@ export default function CombatUI({
                 ? { x: [-8, 8, -5, 5, 0], filter: ['brightness(3) saturate(0)', 'brightness(1) saturate(1)'] }
                 : {}}
               transition={{ duration: 0.35 }}
-              className="text-7xl drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)] select-none"
+              className="drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)] select-none"
             >
-              🛡️
+              {playerSpriteUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={playerSpriteUrl}
+                  alt="player"
+                  style={{ width: 96, height: 96, imageRendering: 'pixelated', objectFit: 'contain' }}
+                />
+              ) : (
+                <span className="text-7xl">🛡️</span>
+              )}
             </motion.div>
             <span className="mt-1 text-xs font-extrabold tracking-widest text-yellow-300 drop-shadow-[0_1px_6px_rgba(0,0,0,1)]">
               {player.class.toUpperCase()}
@@ -229,6 +246,24 @@ export default function CombatUI({
                   className="px-6 py-3 rounded-xl font-bold text-sm bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white border border-white/20 transition-all active:scale-95"
                 >
                   🏃 Flee
+                </button>
+              )}
+              {onBribe && (
+                <button
+                  onClick={onBribe}
+                  disabled={actionsDisabled}
+                  className="px-6 py-3 rounded-xl font-bold text-sm bg-yellow-600/20 hover:bg-yellow-500/30 disabled:opacity-40 text-yellow-300 border border-yellow-500/30 transition-all active:scale-95"
+                >
+                  💰 Bribe{bribeCost ? ` (${bribeCost}g)` : ''}
+                </button>
+              )}
+              {onTruce && (
+                <button
+                  onClick={onTruce}
+                  disabled={actionsDisabled}
+                  className="px-6 py-3 rounded-xl font-bold text-sm bg-emerald-600/20 hover:bg-emerald-500/30 disabled:opacity-40 text-emerald-300 border border-emerald-500/30 transition-all active:scale-95"
+                >
+                  🤝 Truce
                 </button>
               )}
             </div>

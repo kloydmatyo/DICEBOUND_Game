@@ -24,14 +24,17 @@ export default function LPCPreview({ sourceCanvas, animation = 'walk', scale = 3
   const rafRef = useRef<number>(0);
   const lastTimeRef = useRef(0);
 
+  // South direction is row offset 2 (N=0, W=1, S=2, E=3)
+  const SOUTH_DIR = 2;
+
   useEffect(() => {
     const config = ANIMATION_CONFIGS[animation] ?? ANIMATION_CONFIGS['walk'];
-    const { row, num, cycle } = config;
+    const { row, cycle } = config;
     const size = FRAME_SIZE * scale;
 
     const preview = previewRef.current;
     if (!preview) return;
-    preview.width = size * num;
+    preview.width = size;
     preview.height = size;
     const ctx = preview.getContext('2d')!;
     ctx.imageSmoothingEnabled = false;
@@ -52,13 +55,11 @@ export default function LPCPreview({ sourceCanvas, animation = 'walk', scale = 3
       ctx.clearRect(0, 0, preview!.width, preview!.height);
       const frameCol = cycle[frameRef.current];
 
-      for (let dir = 0; dir < num; dir++) {
-        ctx.drawImage(
-          src,
-          frameCol * FRAME_SIZE, (row + dir) * FRAME_SIZE, FRAME_SIZE, FRAME_SIZE,
-          dir * size, 0, size, size
-        );
-      }
+      ctx.drawImage(
+        src,
+        frameCol * FRAME_SIZE, (row + SOUTH_DIR) * FRAME_SIZE, FRAME_SIZE, FRAME_SIZE,
+        0, 0, size, size
+      );
 
       rafRef.current = requestAnimationFrame(draw);
     }
@@ -81,7 +82,6 @@ export default function LPCPreview({ sourceCanvas, animation = 'walk', scale = 3
           style={{ imageRendering: 'pixelated' }}
         />
       </div>
-      <p className="text-xs text-gray-400">N · W · S · E</p>
     </div>
   );
 }
