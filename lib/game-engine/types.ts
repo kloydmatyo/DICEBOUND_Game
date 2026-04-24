@@ -196,6 +196,8 @@ export interface GameState {
   diceManipulation: DiceManipulation;
   /** Destiny state active for the current combat (cleared on combat end) */
   activeCombatDestiny?: DestinyState | null;
+  /** Persistent run flags — track choices for delayed consequences */
+  flags: Record<string, boolean | number | string>;
 }
 
 export interface StatUpgradeCounts {

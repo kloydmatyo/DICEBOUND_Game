@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import {
@@ -32,6 +32,7 @@ import DungeonClearScreen from '@/components/game/DungeonClearScreen';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getDungeonNumber, isDungeonBossFloor } from '@/lib/game-engine/constants';
 import { SaveEngine, SaveData } from '@/lib/game-engine/SaveEngine';
+import { onFlee, onBribe, onTruce, checkEventPayoff, consumePayoff } from '@/lib/game-engine/FlagEngine';
 import ResumePrompt from '@/components/game/ResumePrompt';
 
 type GamePhase = 'character-selection' | 'playing' | 'combat' | 'shop' | 'game-over' | 'dungeon-clear' | 'resume-prompt';
@@ -306,11 +307,14 @@ export default function GamePage() {
 
   const handleFlee = () => {
     if (!gameState || !gameState.currentEnemy) return;
+    const enemy = gameState.currentEnemy;
     const { state: newState, result } = GameEngine.executeFleeAttempt(gameState);
     setGameState(newState);
     setCombatLog((prev) => [...prev, ...result.messages]);
 
     if (result.isPlayerVictory) {
+      const flaggedState = onFlee(newState, enemy);
+      setGameState(flaggedState);
       setPhase('playing');
       setCombatLog([]);
       setCombatEnemy(null);
@@ -324,11 +328,14 @@ export default function GamePage() {
 
   const handleBribe = () => {
     if (!gameState || !gameState.currentEnemy) return;
+    const enemy = gameState.currentEnemy;
     const { state: newState, result } = GameEngine.executeBribeAttempt(gameState);
     setGameState(newState);
     setCombatLog((prev) => [...prev, ...result.messages]);
 
     if (result.isPlayerVictory) {
+      const flaggedState = onBribe(newState, enemy);
+      setGameState(flaggedState);
       setPhase('playing');
       setCombatLog([]);
       setCombatEnemy(null);
@@ -342,11 +349,14 @@ export default function GamePage() {
 
   const handleTruce = () => {
     if (!gameState || !gameState.currentEnemy) return;
+    const enemy = gameState.currentEnemy;
     const { state: newState, result } = GameEngine.executeTruceAttempt(gameState);
     setGameState(newState);
     setCombatLog((prev) => [...prev, ...result.messages]);
 
     if (result.isPlayerVictory) {
+      const flaggedState = onTruce(newState, enemy);
+      setGameState(flaggedState);
       setPhase('playing');
       setCombatLog([]);
       setCombatEnemy(null);
@@ -419,6 +429,22 @@ export default function GamePage() {
 
   // â”€â”€ Events â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleRandomEventWith = (state: GameState, destiny?: { state: string; emoji: string; label: string } | null) => {
+    // Check for delayed consequence payoffs first
+    const payoff = checkEventPayoff(state);
+    if (payoff) {
+      let newPlayer = state.player;
+      let newState = consumePayoff(state, payoff);
+      if (payoff.coins) newPlayer = { ...newPlayer, coins: newPlayer.coins + payoff.coins };
+      if (payoff.hp) newPlayer = { ...newPlayer, health: Math.max(1, Math.min(newPlayer.maxHealth, newPlayer.health + payoff.hp)) };
+      if (payoff.attack) newPlayer = { ...newPlayer, attack: newPlayer.attack + payoff.attack };
+      if (payoff.reroll) newState = { ...newState, diceManipulation: { ...newState.diceManipulation, rerolls: newState.diceManipulation.rerolls + 1 } };
+      newState = { ...newState, player: newPlayer };
+      setGameState(newState);
+      showNotification(payoff.message);
+      if (GameEngine.isFloorComplete(newState)) handleFloorComplete(newState);
+      return;
+    }
+
     const events = [
       { text: 'You found a treasure chest! +20 gold', coins: 20 },
       { text: 'A mysterious stranger heals you! +15 HP', heal: 15 },
@@ -521,7 +547,9 @@ export default function GamePage() {
   const handleResume = () => {
     if (!savedRun) return;
     setPlayerName(savedRun.playerName);
-    setGameState(savedRun.gameState);
+    // Ensure flags exist for saves created before this feature
+    const gs = { ...savedRun.gameState, flags: savedRun.gameState.flags ?? {} };
+    setGameState(gs);
     setUpgradeState(savedRun.upgradeState);
     setPhase('playing');
     setSavedRun(null);
@@ -703,6 +731,91 @@ export default function GamePage() {
                   <button onClick={() => { if (!gameState) return; handleTrapTrigger(gameState, { id: gameState.player.position, type: 'trap', x: 0, y: 0, visited: true, trapType: 'fire', trapTriggered: false }); }} className="w-full bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 rounded text-xs font-bold mb-1">ðŸ”¥ Fire Trap</button>
                   <button onClick={() => { if (!gameState) return; handleTrapTrigger(gameState, { id: gameState.player.position, type: 'trap', x: 0, y: 0, visited: true, trapType: 'spike', trapTriggered: false }); }} className="w-full bg-gray-600 hover:bg-gray-700 text-white px-3 py-1.5 rounded text-xs font-bold mb-1">ðŸ—¡ï¸ Spike Trap</button>
                   <button onClick={() => { if (!gameState) return; handleTrapTrigger(gameState, { id: gameState.player.position, type: 'trap', x: 0, y: 0, visited: true, trapType: 'poison_gas', trapTriggered: false }); }} className="w-full bg-green-700 hover:bg-green-800 text-white px-3 py-1.5 rounded text-xs font-bold">ðŸ§ª Poison Trap</button>
+                
+                <div className="border-t border-purple-400 pt-2 mt-1">
+                  <p className="text-purple-300 text-xs mb-2 font-bold">Flags</p>
+                  <button
+                    onClick={() => { if (!gameState) return; const e = gameState.currentEnemy ?? { type: 'goblin', id: 'debug' } as any; setGameState(onFlee({ ...gameState }, e)); showNotification('[DEBUG] Flee flag set'); }}
+                    className="w-full bg-blue-800 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-bold mb-1"
+                  >Set Flee Flag</button>
+                  <button
+                    onClick={() => { if (!gameState) return; const e = gameState.currentEnemy ?? { type: 'goblin', id: 'debug' } as any; setGameState(onBribe({ ...gameState }, e)); showNotification('[DEBUG] Bribe flag set'); }}
+                    className="w-full bg-yellow-800 hover:bg-yellow-700 text-white px-3 py-1.5 rounded text-xs font-bold mb-1"
+                  >Set Bribe Flag</button>
+                  <button
+                    onClick={() => { if (!gameState) return; const e = gameState.currentEnemy ?? { type: 'skeleton', id: 'debug' } as any; setGameState(onTruce({ ...gameState }, e)); showNotification('[DEBUG] Truce flag set'); }}
+                    className="w-full bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-bold mb-1"
+                  >Set Truce Flag</button>
+                  <button
+                    onClick={() => {
+                      if (!gameState) return;
+                      const payoff = checkEventPayoff(gameState);
+                      if (!payoff) { showNotification('[DEBUG] No payoff ready'); return; }
+                      let p = gameState.player;
+                      let s = consumePayoff(gameState, payoff);
+                      if (payoff.coins) p = { ...p, coins: p.coins + payoff.coins };
+                      if (payoff.hp) p = { ...p, health: Math.max(1, Math.min(p.maxHealth, p.health + payoff.hp)) };
+                      if (payoff.attack) p = { ...p, attack: p.attack + payoff.attack };
+                      if (payoff.reroll) s = { ...s, diceManipulation: { ...s.diceManipulation, rerolls: s.diceManipulation.rerolls + 1 } };
+                      setGameState({ ...s, player: p });
+                      showNotification(`[DEBUG] ${payoff.message}`);
+                    }}
+                    className="w-full bg-pink-800 hover:bg-pink-700 text-white px-3 py-1.5 rounded text-xs font-bold mb-1"
+                  >Trigger Payoff</button>
+                  <button
+                    onClick={() => { if (!gameState) return; setGameState({ ...gameState, flags: {} }); showNotification('[DEBUG] Flags cleared'); }}
+                    className="w-full bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-xs font-bold mb-1"
+                  >Clear Flags</button>
+                  {gameState && Object.keys(gameState.flags).length > 0 && (
+                    <div className="mt-1 max-h-20 overflow-y-auto space-y-0.5">
+                      {Object.entries(gameState.flags).map(([k, v]) => (
+                        <p key={k} className="text-[9px] text-gray-400 truncate">{k}: {String(v)}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+</div>
+                <div className="border-t border-purple-400 pt-2 mt-1">
+                  <p className="text-purple-300 text-xs mb-2 font-bold">🚩 Flags</p>
+                  <button
+                    onClick={() => { if (!gameState) return; const e = gameState.currentEnemy ?? { type: 'goblin', id: 'debug' } as any; setGameState(onFlee({ ...gameState }, e)); showNotification('[DEBUG] Flee flag set'); }}
+                    className="w-full bg-blue-800 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-bold mb-1"
+                  >🏃 Set Flee Flag</button>
+                  <button
+                    onClick={() => { if (!gameState) return; const e = gameState.currentEnemy ?? { type: 'goblin', id: 'debug' } as any; setGameState(onBribe({ ...gameState }, e)); showNotification('[DEBUG] Bribe flag set'); }}
+                    className="w-full bg-yellow-800 hover:bg-yellow-700 text-white px-3 py-1.5 rounded text-xs font-bold mb-1"
+                  > Set Bribe Flag</button>
+                  <button
+                    onClick={() => { if (!gameState) return; const e = gameState.currentEnemy ?? { type: 'skeleton', id: 'debug' } as any; setGameState(onTruce({ ...gameState }, e)); showNotification('[DEBUG] Truce flag set'); }}
+                    className="w-full bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-bold mb-1"
+                  > Set Truce Flag</button>
+                  <button
+                    onClick={() => {
+                      if (!gameState) return;
+                      const payoff = checkEventPayoff(gameState);
+                      if (!payoff) { showNotification('[DEBUG] No payoff ready'); return; }
+                      let p = gameState.player;
+                      let s = consumePayoff(gameState, payoff);
+                      if (payoff.coins) p = { ...p, coins: p.coins + payoff.coins };
+                      if (payoff.hp) p = { ...p, health: Math.max(1, Math.min(p.maxHealth, p.health + payoff.hp)) };
+                      if (payoff.attack) p = { ...p, attack: p.attack + payoff.attack };
+                      if (payoff.reroll) s = { ...s, diceManipulation: { ...s.diceManipulation, rerolls: s.diceManipulation.rerolls + 1 } };
+                      setGameState({ ...s, player: p });
+                      showNotification(`[DEBUG] ${payoff.message}`);
+                    }}
+                    className="w-full bg-pink-800 hover:bg-pink-700 text-white px-3 py-1.5 rounded text-xs font-bold mb-1"
+                  > Trigger Payoff</button>
+                  <button
+                    onClick={() => { if (!gameState) return; setGameState({ ...gameState, flags: {} }); showNotification('[DEBUG] Flags cleared'); }}
+                    className="w-full bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-xs font-bold mb-1"
+                  > Clear Flags</button>
+                  {gameState && Object.keys(gameState.flags).length > 0 && (
+                    <div className="mt-1 max-h-20 overflow-y-auto space-y-0.5">
+                      {Object.entries(gameState.flags).map(([k, v]) => (
+                        <p key={k} className="text-[9px] text-gray-400 truncate">{k}: {String(v)}</p>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>

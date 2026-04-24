@@ -28,6 +28,7 @@ export class GameEngine {
       enemiesKilled: 0,
       pendingBranchChoice: null,
       diceManipulation: { ...DEFAULT_DICE_MANIPULATION },
+      flags: {},
     };
   }
 
@@ -448,6 +449,7 @@ export class GameEngine {
       turnCount: 0,
       pendingBranchChoice: null,
       diceManipulation: { ...DEFAULT_DICE_MANIPULATION },
+      flags: state.flags, // carry flags across floors
     };
   }
 
