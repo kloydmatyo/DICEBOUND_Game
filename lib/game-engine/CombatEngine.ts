@@ -95,6 +95,7 @@ export class CombatEngine {
 
     // Apply damage to enemy (absorb through shield first)
     let remainingPlayerDamage = playerDamage;
+    let shieldAbsorbed = 0;
 
     // Cursed Idol: +20% damage dealt, but enemy hits harder (handled below)
     if (hasCursedIdol && remainingPlayerDamage > 0) {
@@ -128,6 +129,21 @@ export class CombatEngine {
         if (absorbed > 0) messages.push(`🔮 Mana Shield absorbs ${absorbed} damage! (${updatedPlayerMana} mana left)`);
       }
 
+      // Player shield status effect — absorb incoming damage
+      const playerShield = player.statusEffects.find(e => e.type === 'shield');
+      if (playerShield && incomingDamage > 0) {
+        shieldAbsorbed = Math.min(playerShield.value ?? 0, incomingDamage);
+        incomingDamage = Math.max(0, incomingDamage - shieldAbsorbed);
+        const newShieldVal = (playerShield.value ?? 0) - shieldAbsorbed;
+        messages.push(`🛡️ Shield absorbs ${shieldAbsorbed} damage!${newShieldVal <= 0 ? ' Shield broken!' : ` (${newShieldVal} remaining)`}`);
+        // Mirror shield: reflect 30% back — signal via a flag on result
+        const isMirror = relics.includes('mirror_shield_active') || player.inventory.some(i => i.id === 'mirror_shield' && i.quantity > 0);
+        if (isMirror && shieldAbsorbed > 0) {
+          const reflected = Math.floor(shieldAbsorbed * 0.3);
+          if (reflected > 0) messages.push(`🪞 Mirror Shield reflects ${reflected} damage back!`);
+        }
+      }
+
       enemyDamage = incomingDamage;
       messages.push(`${enemy.name} attacks for ${enemyDamage} damage!`);
 
@@ -136,7 +152,6 @@ export class CombatEngine {
         const penalty = Math.floor(enemyDamage * 0.1);
         enemyDamage += penalty;
       }
-
       // ── Enemy behavior effects ──────────────────────────────────────────
       switch (enemy.behavior) {
         case 'berserker': {
@@ -197,6 +212,7 @@ export class CombatEngine {
       // Relic side-effects
       relicVampiricHeal: (playerDamage > 0 && relics.includes('vampiric_fang')) ? 3 : 0,
       relicBonusCoins:   (isEnemyDefeated && relics.includes('philosophers_stone')) ? 5 : 0,
+      shieldAbsorbed: shieldAbsorbed ?? 0,
     };
   }
 

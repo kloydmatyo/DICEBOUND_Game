@@ -244,6 +244,8 @@ export const ITEM_TYPES = {
   HEARTSTONE_AMULET: 'heartstone_amulet',
   HOLY_WATER: 'holy_water',
   BLESSING: 'blessing',
+  IRON_SHIELD: 'iron_shield',
+  MIRROR_SHIELD: 'mirror_shield',
 } as const;
 
 // Shop Prices
@@ -255,6 +257,8 @@ export const SHOP_PRICES = {
   HEARTSTONE_AMULET: 50,
   HOLY_WATER: 30,
   BLESSING: 40,
+  IRON_SHIELD: 35,
+  MIRROR_SHIELD: 80,
 } as const;
 
 /**

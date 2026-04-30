@@ -83,6 +83,22 @@ export default function HUD({ player, floor, turnCount, onInventoryClick, player
                     animate={{ width: `${manaPercent}%` }} transition={{ duration: 0.3 }} />
                 </div>
               )}
+              {/* Shield bar */}
+              {(() => {
+                const shield = player.statusEffects.find(e => e.type === 'shield');
+                if (!shield?.value) return null;
+                const maxShield = shield.value <= 30 ? 30 : 60;
+                return (
+                  <>
+                    <span className="text-cyan-300 text-xs font-bold">🛡 {shield.value}</span>
+                    <div className="h-1.5 bg-black/50 rounded-full overflow-hidden w-full mt-0.5">
+                      <motion.div className="h-full bg-gradient-to-r from-cyan-500 to-blue-400 rounded-full"
+                        animate={{ width: `${Math.min(100, (shield.value / maxShield) * 100)}%` }}
+                        transition={{ duration: 0.3 }} />
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
 

@@ -86,6 +86,25 @@ export default function CombatUI({
             style={{ left: '29%', bottom: 'calc(18% + 175px)', transform: 'translateX(-50%)' }}>
             <p className="text-yellow-300 font-extrabold text-xs tracking-widest mb-1">{player.class.toUpperCase()}</p>
             <HealthBar current={player.health} max={player.maxHealth} color="bg-emerald-500" />
+            {/* Shield bar */}
+            {(() => {
+              const shield = player.statusEffects.find(e => e.type === 'shield');
+              if (!shield?.value) return null;
+              const maxShield = shield.value <= 30 ? 30 : 60;
+              return (
+                <div className="mt-1.5">
+                  <div className="flex justify-between text-[10px] font-bold mb-0.5">
+                    <span className="text-cyan-300 uppercase tracking-widest">🛡 Shield</span>
+                    <span className="text-cyan-200 font-mono">{shield.value}</span>
+                  </div>
+                  <div className="h-2 bg-black/60 rounded-full overflow-hidden border border-cyan-500/30">
+                    <motion.div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-400"
+                      animate={{ width: `${Math.min(100, (shield.value / maxShield) * 100)}%` }}
+                      transition={{ type: 'spring', stiffness: 120, damping: 20 }} />
+                  </div>
+                </div>
+              );
+            })()}
             {player.class === 'mage' && player.maxMana !== undefined && (
               <div className="mt-1">
                 <div className="flex justify-between text-[10px] font-bold mb-0.5">
@@ -144,13 +163,13 @@ export default function CombatUI({
           <div className="border-r-2 border-white/10 px-5 py-4 flex flex-col justify-between">
             <AnimatePresence mode="wait">
               <motion.p key={promptText} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                className="text-white font-bold text-sm leading-relaxed">
+                className="text-white font-bold text-base leading-relaxed">
                 {promptText}
               </motion.p>
             </AnimatePresence>
-            <div className="mt-2 space-y-0.5">
+            <div className="mt-2 space-y-1">
               {combatLog.slice(-3, -1).map((msg, i) => (
-                <p key={i} className="text-white/40 text-xs truncate">› {msg}</p>
+                <p key={i} className="text-white/50 text-sm truncate">› {msg}</p>
               ))}
             </div>
           </div>

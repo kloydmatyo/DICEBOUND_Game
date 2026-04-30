@@ -126,7 +126,7 @@ export interface Item {
 }
 
 export interface ItemEffect {
-  type: 'heal' | 'cure' | 'cure_curse' | 'buff' | 'permanent' | 'relic';
+  type: 'heal' | 'cure' | 'cure_curse' | 'buff' | 'permanent' | 'relic' | 'shield';
   value?: number;
   stat?: 'health' | 'attack' | 'defense';
   duration?: number;
@@ -179,6 +179,8 @@ export interface CombatResult {
   relicBonusCoins?: number;
   /** Cost paid for bribe resolution */
   bribeCost?: number;
+  /** How much damage the player's shield absorbed this turn */
+  shieldAbsorbed?: number;
 }
 
 export interface GameState {

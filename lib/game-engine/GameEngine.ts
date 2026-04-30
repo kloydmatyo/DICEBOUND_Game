@@ -260,6 +260,18 @@ export class GameEngine {
       if (skill.id === 'divine_healing') updatedPlayer = { ...updatedPlayer, statusEffects: [] };
     }
 
+    // Update player shield value after absorbing damage
+    const shieldEffect = updatedPlayer.statusEffects.find(e => e.type === 'shield');
+    if (shieldEffect && result.shieldAbsorbed !== undefined) {
+      const newVal = (shieldEffect.value ?? 0) - result.shieldAbsorbed;
+      updatedPlayer = {
+        ...updatedPlayer,
+        statusEffects: newVal <= 0
+          ? updatedPlayer.statusEffects.filter(e => e.type !== 'shield')
+          : updatedPlayer.statusEffects.map(e => e.type === 'shield' ? { ...e, value: newVal } : e),
+      };
+    }
+
     updatedPlayer = CharacterEngine.updateCooldowns(updatedPlayer);
 
     if (skill && skill.type === 'active') {

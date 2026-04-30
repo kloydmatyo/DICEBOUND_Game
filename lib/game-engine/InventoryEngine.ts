@@ -82,6 +82,16 @@ export class InventoryEngine {
         quantity: 1,
         autoConsume: true,
       },
+      {
+        id: ITEM_TYPES.IRON_SHIELD,
+        type: ITEM_TYPES.IRON_SHIELD,
+        name: 'Iron Shield',
+        description: 'Absorbs up to 30 damage before breaking',
+        price: p(SHOP_PRICES.IRON_SHIELD),
+        effect: { type: 'shield', value: 30 },
+        quantity: 1,
+        autoConsume: false,
+      },
     ];
   }
 
@@ -173,6 +183,16 @@ export class InventoryEngine {
         effect: { type: 'buff', duration: 10 },
         quantity: 1,
         autoConsume: true,
+      },
+      {
+        id: ITEM_TYPES.MIRROR_SHIELD,
+        type: ITEM_TYPES.MIRROR_SHIELD,
+        name: 'Mirror Shield',
+        description: 'Absorbs up to 60 damage and reflects 30% back at the attacker',
+        price: SHOP_PRICES.MIRROR_SHIELD,
+        effect: { type: 'shield', value: 60 },
+        quantity: 1,
+        autoConsume: false,
       },
     ];
   }
@@ -314,6 +334,21 @@ export class InventoryEngine {
           updatedPlayer = CharacterEngine.upgradeStat(updatedPlayer, item.effect.stat, item.effect.value);
         }
         message = `${item.name} equipped! Its power flows through you.`;
+        break;
+      }
+
+      case 'shield': {
+        const shieldValue = item.effect.value ?? 30;
+        const isMirror = item.id === ITEM_TYPES.MIRROR_SHIELD;
+        // Remove any existing shield first, then apply new one
+        const withoutShield = player.statusEffects.filter(e => e.type !== 'shield');
+        updatedPlayer = {
+          ...player,
+          statusEffects: [...withoutShield, { type: 'shield' as const, duration: 999, value: shieldValue }],
+        };
+        message = isMirror
+          ? `${item.name} raised! Absorbs ${shieldValue} damage and reflects 30% back!`
+          : `${item.name} raised! Absorbs up to ${shieldValue} damage!`;
         break;
       }
     }

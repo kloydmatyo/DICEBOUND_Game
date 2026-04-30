@@ -4,11 +4,9 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CharacterClass, CLASS_STATS } from '@/lib/game-engine';
 import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
 import { cn } from '@/lib/utils';
 import dynamic from 'next/dynamic';
 
-// Dynamically import to avoid SSR issues with canvas
 const LPCCharacterCreator = dynamic(
   () => import('./LPCCharacterCreator'),
   { ssr: false, loading: () => <div className="text-game-mana text-sm animate-pulse text-center py-8">Loading character creator...</div> }
@@ -27,25 +25,52 @@ const classEmojis: Record<CharacterClass, string> = {
   cleric: '✨',
 };
 
-const classColors: Record<CharacterClass, string> = {
-  knight: 'border-cyan-500',
-  archer: 'border-green-500',
-  mage: 'border-blue-500',
-  barbarian: 'border-red-500',
-  assassin: 'border-purple-500',
-  cleric: 'border-yellow-500',
+const classAccent: Record<CharacterClass, { border: string; glow: string; bar: string }> = {
+  knight:    { border: 'border-cyan-500',   glow: 'shadow-cyan-500/40',   bar: 'bg-cyan-500' },
+  archer:    { border: 'border-green-500',  glow: 'shadow-green-500/40',  bar: 'bg-green-500' },
+  mage:      { border: 'border-blue-500',   glow: 'shadow-blue-500/40',   bar: 'bg-blue-500' },
+  barbarian: { border: 'border-red-500',    glow: 'shadow-red-500/40',    bar: 'bg-red-500' },
+  assassin:  { border: 'border-purple-500', glow: 'shadow-purple-500/40', bar: 'bg-purple-500' },
+  cleric:    { border: 'border-yellow-500', glow: 'shadow-yellow-500/40', bar: 'bg-yellow-500' },
 };
 
 type Step = 'appearance' | 'class';
 
+const CLASS_LIST = Object.entries(CLASS_STATS) as [CharacterClass, typeof CLASS_STATS[CharacterClass]][];
+
+function StatBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+  const pct = Math.min(100, (value / max) * 100);
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-gray-300 text-sm w-20 shrink-0">{label}</span>
+      <div className="flex-1 h-3 bg-black/40 rounded-full overflow-hidden border border-white/10">
+        <motion.div
+          className={`h-full rounded-full ${color}`}
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+        />
+      </div>
+      <span className="text-white font-bold text-sm w-8 text-right">{value}</span>
+    </div>
+  );
+}
+
 export default function CharacterSelection({ onSelect }: CharacterSelectionProps) {
   const [step, setStep] = useState<Step>('appearance');
   const [spriteDataUrl, setSpriteDataUrl] = useState<string | undefined>();
-  const [selectedClass, setSelectedClass] = useState<CharacterClass | null>(null);
+  const [classIndex, setClassIndex] = useState(0);
   const [playerName, setPlayerName] = useState('');
+  const [direction, setDirection] = useState(0);
 
-  const canStart = selectedClass && playerName.trim().length > 0;
-  const classes = Object.entries(CLASS_STATS) as [CharacterClass, typeof CLASS_STATS[CharacterClass]][];
+  const [currentClass, currentData] = CLASS_LIST[classIndex];
+  const accent = classAccent[currentClass];
+  const canStart = playerName.trim().length > 0;
+
+  function navigate(dir: 1 | -1) {
+    setDirection(dir);
+    setClassIndex(i => (i + dir + CLASS_LIST.length) % CLASS_LIST.length);
+  }
 
   function handleAppearanceConfirm(dataUrl: string) {
     setSpriteDataUrl(dataUrl);
@@ -53,157 +78,146 @@ export default function CharacterSelection({ onSelect }: CharacterSelectionProps
   }
 
   function handleStart() {
-    if (!selectedClass || !canStart) return;
-    onSelect(selectedClass, playerName.trim(), spriteDataUrl);
+    if (!canStart) return;
+    onSelect(currentClass, playerName.trim(), spriteDataUrl);
   }
 
+  const variants = {
+    enter: (d: number) => ({ opacity: 0, x: d > 0 ? 80 : -80 }),
+    center: { opacity: 1, x: 0 },
+    exit: (d: number) => ({ opacity: 0, x: d > 0 ? -80 : 80 }),
+  };
+
   return (
-    <div className="min-h-screen w-full bg-game-bg overflow-y-auto">
-      <div className="w-full min-h-screen flex flex-col items-center justify-start py-8 px-3 sm:px-6">
-        <div className="w-full max-w-4xl flex flex-col items-center">
+    <div className="min-h-screen w-full bg-game-bg overflow-y-auto flex flex-col items-center justify-center py-8 px-3 sm:px-6">
+      <div className="w-full max-w-2xl flex flex-col items-center gap-6">
 
-          {/* Header */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-6 w-full"
-          >
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-game-accent mb-2 text-shadow px-2">
-              ⚔️ CHARACTER CREATION ⚔️
-            </h1>
+        {/* Header */}
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center w-full">
+          <h1 className="text-2xl sm:text-3xl font-bold text-game-accent mb-3">⚔️ CHARACTER CREATION ⚔️</h1>
+          <div className="flex items-center justify-center gap-3">
+            <StepBadge num={1} label="Appearance" active={step === 'appearance'} done={step === 'class'} />
+            <div className="w-8 h-px bg-game-secondary" />
+            <StepBadge num={2} label="Class" active={step === 'class'} done={false} />
+          </div>
+        </motion.div>
 
-            {/* Step indicator */}
-            <div className="flex items-center justify-center gap-3 mt-3">
-              <StepBadge num={1} label="Appearance" active={step === 'appearance'} done={step === 'class'} />
-              <div className="w-8 h-px bg-game-secondary" />
-              <StepBadge num={2} label="Class" active={step === 'class'} done={false} />
-            </div>
-          </motion.div>
+        <AnimatePresence mode="wait">
+          {step === 'appearance' && (
+            <motion.div key="appearance" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="w-full">
+              <LPCCharacterCreator onConfirm={handleAppearanceConfirm} />
+            </motion.div>
+          )}
 
-          <AnimatePresence mode="wait">
-            {step === 'appearance' && (
-              <motion.div
-                key="appearance"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="w-full"
-              >
-                <LPCCharacterCreator onConfirm={handleAppearanceConfirm} />
-              </motion.div>
-            )}
+          {step === 'class' && (
+            <motion.div key="class" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="w-full flex flex-col items-center gap-5">
 
-            {step === 'class' && (
-              <motion.div
-                key="class"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="w-full flex flex-col items-center gap-4"
-              >
-                {/* Back button + sprite preview */}
-                <div className="flex items-center gap-4 w-full">
-                  <button
-                    onClick={() => setStep('appearance')}
-                    className="text-xs text-gray-400 hover:text-white underline"
-                  >
-                    ← Back to appearance
-                  </button>
-                  {spriteDataUrl && (
-                    <div className="flex items-center gap-2">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                        src={spriteDataUrl}
-                        alt="Your character"
-                        style={{ imageRendering: 'pixelated', height: '48px', width: '48px' }}
-                        className="rounded"
-                      />
-                      <span className="text-xs text-gray-400">Your character</span>
-                    </div>
-                  )}
-                </div>
+              {/* Back + sprite preview */}
+              <div className="flex items-center gap-4 w-full">
+                <button onClick={() => setStep('appearance')} className="text-xs text-gray-400 hover:text-white underline">
+                  ← Back to appearance
+                </button>
+                {spriteDataUrl && (
+                  <div className="flex items-center gap-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={spriteDataUrl} alt="Your character"
+                      style={{ imageRendering: 'pixelated', height: 48, width: 48 }} className="rounded" />
+                    <span className="text-xs text-gray-400">Your character</span>
+                  </div>
+                )}
+              </div>
 
-                <p className="text-game-mana text-sm">Choose your class, adventurer!</p>
+              {/* ── Carousel card ── */}
+              <div className="relative w-full flex items-center gap-3">
+                {/* Left arrow */}
+                <button onClick={() => navigate(-1)}
+                  className="shrink-0 w-12 h-12 rounded-full bg-black/60 border border-white/20 hover:border-white/50 text-white text-xl font-bold flex items-center justify-center transition-all hover:scale-110 active:scale-95">
+                  ‹
+                </button>
 
-                {/* Class grid */}
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 w-full">
-                  {classes.map(([classKey, classData], index) => (
+                {/* Card */}
+                <div className={cn('flex-1 relative overflow-hidden rounded-2xl border-2 bg-black/60 backdrop-blur-sm shadow-2xl', accent.border, accent.glow, 'shadow-xl')}
+                  style={{ minHeight: 260 }}>
+                  <AnimatePresence mode="wait" custom={direction}>
                     <motion.div
-                      key={classKey}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: index * 0.05 }}
+                      key={currentClass}
+                      custom={direction}
+                      variants={variants}
+                      initial="enter"
+                      animate="center"
+                      exit="exit"
+                      transition={{ duration: 0.22, ease: 'easeInOut' }}
+                      className="flex gap-6 p-6"
                     >
-                      <Card
-                        variant="bordered"
-                        className={cn(
-                          'cursor-pointer transition-all hover:scale-105 hover:shadow-2xl',
-                          selectedClass === classKey && `${classColors[classKey]} border-4 glow`,
-                          selectedClass !== classKey && 'border-game-secondary'
-                        )}
-                        onClick={() => setSelectedClass(classKey)}
-                      >
-                        <div className="text-center">
-                          <div className="text-4xl sm:text-6xl mb-2 sm:mb-3">{classEmojis[classKey]}</div>
-                          <h3 className="text-lg sm:text-2xl font-bold text-game-gold mb-1 sm:mb-2">
-                            {classData.name.toUpperCase()}
-                          </h3>
-                          <p className="text-gray-400 text-xs sm:text-sm mb-3 sm:mb-4 min-h-[30px] sm:min-h-[40px]">
-                            {classData.description}
-                          </p>
-                          <div className="space-y-1.5 sm:space-y-2 text-left bg-game-bg bg-opacity-50 rounded p-2 sm:p-3">
-                            <div className="stat-display text-xs sm:text-base">
-                              <span className="text-game-health">❤️ Health:</span>
-                              <span className="font-bold">{classData.baseHealth}</span>
-                            </div>
-                            <div className="stat-display text-xs sm:text-base">
-                              <span className="text-game-attack">⚔️ Attack:</span>
-                              <span className="font-bold">{classData.baseAttack}</span>
-                            </div>
-                            <div className="stat-display text-xs sm:text-base">
-                              <span className="text-game-defense">🛡️ Defense:</span>
-                              <span className="font-bold">{classData.baseDefense}</span>
-                            </div>
-                            <div className="stat-display text-xs sm:text-base">
-                              <span className="text-game-gold">💰 Coins:</span>
-                              <span className="font-bold">{classData.startingCoins}</span>
-                            </div>
-                            {('baseMana' in classData) && classData.baseMana && (
-                              <div className="stat-display text-xs sm:text-base">
-                                <span className="text-game-mana">✨ Mana:</span>
-                                <span className="font-bold">{classData.baseMana}</span>
-                              </div>
-                            )}
-                          </div>
+                      {/* Left: big emoji */}
+                      <div className="flex flex-col items-center justify-center shrink-0 w-28">
+                        <div className="text-7xl mb-2 drop-shadow-lg">{classEmojis[currentClass]}</div>
+                        <span className={cn('text-xs font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border', accent.border, 'text-white/80')}>
+                          {currentData.name}
+                        </span>
+                      </div>
+
+                      {/* Right: name, description, stats */}
+                      <div className="flex-1 flex flex-col gap-3">
+                        <div>
+                          <h2 className="text-2xl font-black text-white tracking-wide">{currentData.name.toUpperCase()}</h2>
+                          <p className="text-gray-400 text-sm mt-1 leading-relaxed">{currentData.description}</p>
                         </div>
-                      </Card>
+
+                        <div className="flex flex-col gap-2 mt-1">
+                          <StatBar label="Health" value={currentData.baseHealth} max={150} color={accent.bar} />
+                          <StatBar label="Attack" value={currentData.baseAttack} max={25} color={accent.bar} />
+                          <StatBar label="Defense" value={currentData.baseDefense} max={10} color={accent.bar} />
+                          {'baseMana' in currentData && currentData.baseMana
+                            ? <StatBar label="Mana" value={currentData.baseMana} max={100} color="bg-blue-400" />
+                            : null}
+                        </div>
+                      </div>
                     </motion.div>
-                  ))}
+                  </AnimatePresence>
                 </div>
 
-                {/* Name + start */}
-                <div className="flex flex-col items-center gap-3 w-full max-w-xs mt-2">
-                  <input
-                    type="text"
-                    placeholder="Enter your name..."
-                    value={playerName}
-                    onChange={e => setPlayerName(e.target.value)}
-                    maxLength={20}
-                    className="w-full bg-game-primary border-2 border-game-gold rounded-xl px-4 py-3 text-white text-center font-bold placeholder-gray-500 focus:outline-none focus:border-yellow-300 text-sm sm:text-base"
-                  />
-                  <Button
-                    size="lg"
-                    disabled={!canStart}
-                    onClick={handleStart}
-                    className="text-sm sm:text-base px-8 sm:px-12 py-2.5 sm:py-3 w-full"
-                  >
-                    {!selectedClass ? 'SELECT A CLASS FIRST' : !playerName.trim() ? 'ENTER YOUR NAME' : '🗡️ START ADVENTURE 🗡️'}
-                  </Button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+                {/* Right arrow */}
+                <button onClick={() => navigate(1)}
+                  className="shrink-0 w-12 h-12 rounded-full bg-black/60 border border-white/20 hover:border-white/50 text-white text-xl font-bold flex items-center justify-center transition-all hover:scale-110 active:scale-95">
+                  ›
+                </button>
+              </div>
+
+              {/* ── Thumbnail row ── */}
+              <div className="flex gap-2 justify-center">
+                {CLASS_LIST.map(([cls], i) => (
+                  <button key={cls} onClick={() => { setDirection(i > classIndex ? 1 : -1); setClassIndex(i); }}
+                    className={cn(
+                      'w-12 h-12 rounded-xl border-2 flex items-center justify-center text-2xl transition-all hover:scale-110',
+                      i === classIndex
+                        ? cn('border-white shadow-lg scale-110', classAccent[cls].glow)
+                        : 'border-white/20 bg-black/40 opacity-60 hover:opacity-100'
+                    )}>
+                    {classEmojis[cls]}
+                  </button>
+                ))}
+              </div>
+
+              {/* Name + start */}
+              <div className="flex flex-col items-center gap-3 w-full max-w-xs">
+                <input
+                  type="text"
+                  placeholder="Enter your name..."
+                  value={playerName}
+                  onChange={e => setPlayerName(e.target.value)}
+                  maxLength={20}
+                  className="w-full bg-game-primary border-2 border-game-gold rounded-xl px-4 py-3 text-white text-center font-bold placeholder-gray-500 focus:outline-none focus:border-yellow-300 text-sm sm:text-base"
+                />
+                <Button size="lg" disabled={!canStart} onClick={handleStart}
+                  className="text-sm sm:text-base px-8 sm:px-12 py-2.5 sm:py-3 w-full">
+                  {!playerName.trim() ? 'ENTER YOUR NAME' : `🗡️ START AS ${currentData.name.toUpperCase()} 🗡️`}
+                </Button>
+              </div>
+
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -212,10 +226,8 @@ export default function CharacterSelection({ onSelect }: CharacterSelectionProps
 function StepBadge({ num, label, active, done }: { num: number; label: string; active: boolean; done: boolean }) {
   return (
     <div className="flex items-center gap-1.5">
-      <div className={cn(
-        'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold',
-        done ? 'bg-green-600 text-white' : active ? 'bg-game-gold text-black' : 'bg-game-secondary text-gray-400'
-      )}>
+      <div className={cn('w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold',
+        done ? 'bg-green-600 text-white' : active ? 'bg-game-gold text-black' : 'bg-game-secondary text-gray-400')}>
         {done ? '✓' : num}
       </div>
       <span className={cn('text-xs', active ? 'text-white font-medium' : 'text-gray-500')}>{label}</span>
