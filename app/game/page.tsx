@@ -52,15 +52,17 @@ export default function GamePage() {
   const [enemyAnimState, setEnemyAnimState] = useState<'Idle' | 'Hurt' | 'Attack' | 'Death'>('Idle');
   const [playerHurt, setPlayerHurt] = useState(false);
   const [combatEnemy, setCombatEnemy] = useState<Enemy | null>(null);
+  const [fleeUsed, setFleeUsed] = useState(false);
   // Branch choice state â€” set after rolling, cleared after tile selection
   const [pendingChoice, setPendingChoice] = useState<BranchChoice | null>(null);
   const [playerName, setPlayerName] = useState<string>('');
-  const [savedRun, setSavedRun] = useState<SaveData | null>(null);
+  const [activeSlot, setActiveSlot] = useState<number>(0);
+  const [savedRuns, setSavedRuns] = useState<SaveData[]>([]);
 
-  // Detect saved run on mount
+  // Detect saved runs on mount
   useEffect(() => {
-    const save = SaveEngine.load();
-    if (save) { setSavedRun(save); setPhase('resume-prompt'); }
+    const saves = SaveEngine.loadAll();
+    if (saves.length > 0) { setSavedRuns(saves); setPhase('resume-prompt'); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -71,7 +73,7 @@ export default function GamePage() {
 
   // -- Auto-save helper (pass name explicitly to avoid stale closure) --
   const autoSave = (gs: GameState, name: string = playerName, us: WeaponUpgradeState = upgradeState) => {
-    if (name) SaveEngine.save(name, gs, us);
+    if (name) SaveEngine.save(activeSlot, name, gs, us);
   };
 
   // â”€â”€ Character selection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -85,7 +87,7 @@ export default function GamePage() {
     setGameState(newGameState);
     setUpgradeState(newUpgradeState);
     setPhase('playing');
-    SaveEngine.save(name, newGameState, newUpgradeState);
+    SaveEngine.save(activeSlot, name, newGameState, newUpgradeState);
     showNotification(`Welcome, ${name}! Your adventure begins...`);
   };
 
@@ -174,7 +176,7 @@ export default function GamePage() {
 
     if (stateAfterMove.player.health <= 0) {
       setGameState(stateAfterMove);
-    SaveEngine.clear();
+      SaveEngine.clearSlot(activeSlot);
       setTimeout(() => setPhase('game-over'), 500);
       return;
     }
@@ -192,6 +194,7 @@ export default function GamePage() {
         setGameState(combatState);
         setPhase('combat');
         setCombatEnemy(combatState.currentEnemy);
+        setFleeUsed(false);
         const destinyTag = destiny ? ` [${destiny.emoji} ${destiny.label}]` : '';
         setCombatLog([`A wild ${tile.enemy?.name} appears!${destinyTag}`]);
         return;
@@ -201,6 +204,7 @@ export default function GamePage() {
         setGameState(combatState);
         setPhase('combat');
         setCombatEnemy(combatState.currentEnemy);
+        setFleeUsed(false);
         const destinyTag = destiny ? ` [${destiny.emoji} ${destiny.label}]` : '';
         setCombatLog([`⚔️ Elite ${tile.enemy?.name} blocks your path!${destinyTag}`]);
         return;
@@ -210,6 +214,7 @@ export default function GamePage() {
         setGameState(bossState);
         setPhase('combat');
         setCombatEnemy(bossState.currentEnemy);
+        setFleeUsed(false);
         const destinyTag = destiny ? ` [${destiny.emoji} ${destiny.label}]` : '';
         setCombatLog([` Boss battle begins!${destinyTag}`]);
         return;
@@ -238,7 +243,6 @@ export default function GamePage() {
         return;
       default:
         setGameState(stateAfterMove);
-        showNotification('You move forward cautiously...');
     }
 
     if (GameEngine.isFloorComplete(stateAfterMove)) {
@@ -291,8 +295,8 @@ export default function GamePage() {
     setGameState(newState);
     setCombatLog((prev) => [...prev, ...result.messages]);
     triggerCombatAnimations(gameState.currentEnemy.type, result);
-    SaveEngine.clear();
-    if (GameEngine.isGameOver(newState)) setTimeout(() => setPhase('game-over'), 1500);
+    if (GameEngine.isGameOver(newState)) { SaveEngine.clearSlot(activeSlot); setTimeout(() => setPhase('game-over'), 1500); }
+    else autoSave(newState);
   };
 
   const handleUseSkill = (skillId: string) => {
@@ -301,14 +305,15 @@ export default function GamePage() {
     setGameState(newState);
     setCombatLog((prev) => [...prev, ...result.messages]);
     triggerCombatAnimations(gameState.currentEnemy.type, result);
-    SaveEngine.clear();
-    if (GameEngine.isGameOver(newState)) setTimeout(() => setPhase('game-over'), 1500);
+    if (GameEngine.isGameOver(newState)) { SaveEngine.clearSlot(activeSlot); setTimeout(() => setPhase('game-over'), 1500); }
+    else autoSave(newState);
   };
 
   const handleFlee = () => {
     if (!gameState || !gameState.currentEnemy) return;
     const enemy = gameState.currentEnemy;
     const { state: newState, result } = GameEngine.executeFleeAttempt(gameState);
+    setFleeUsed(true);
     setGameState(newState);
     setCombatLog((prev) => [...prev, ...result.messages]);
 
@@ -321,8 +326,7 @@ export default function GamePage() {
       showNotification('🏃 You fled successfully!');
     } else {
       showNotification('🏃 Flee failed!');
-      SaveEngine.clear();
-      if (GameEngine.isGameOver(newState)) setTimeout(() => setPhase('game-over'), 1000);
+      if (GameEngine.isGameOver(newState)) { SaveEngine.clearSlot(activeSlot); setTimeout(() => setPhase('game-over'), 1000); }
     }
   };
 
@@ -342,8 +346,7 @@ export default function GamePage() {
       showNotification(`💰 Bribe accepted! Paid ${result.bribeCost} coins.`);
     } else {
       showNotification('💰 Bribe failed!');
-      SaveEngine.clear();
-      if (GameEngine.isGameOver(newState)) setTimeout(() => setPhase('game-over'), 1000);
+      if (GameEngine.isGameOver(newState)) { SaveEngine.clearSlot(activeSlot); setTimeout(() => setPhase('game-over'), 1000); }
     }
   };
 
@@ -363,8 +366,7 @@ export default function GamePage() {
       showNotification(`🤝 Truce! Earned ${result.coinsEarned} coins.`);
     } else {
       showNotification('🤝 Truce rejected!');
-      SaveEngine.clear();
-      if (GameEngine.isGameOver(newState)) setTimeout(() => setPhase('game-over'), 1000);
+      if (GameEngine.isGameOver(newState)) { SaveEngine.clearSlot(activeSlot); setTimeout(() => setPhase('game-over'), 1000); }
     }
   };
 
@@ -423,8 +425,8 @@ export default function GamePage() {
 
     setGameState({ ...state, player: newPlayer, board: newBoard });
     showNotification(message);
-    SaveEngine.clear();
-    if (newPlayer.health <= 0) setTimeout(() => setPhase('game-over'), 500);
+    if (newPlayer.health <= 0) { SaveEngine.clearSlot(activeSlot); setTimeout(() => setPhase('game-over'), 500); }
+    else autoSave({ ...state, player: newPlayer, board: newBoard });
   };
 
   // â”€â”€ Events â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -534,7 +536,7 @@ export default function GamePage() {
 
   // â”€â”€ Restart / Menu â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleRestart = () => {
-    SaveEngine.clear();
+    SaveEngine.clearSlot(activeSlot);
     setGameState(null);
     setPlayerName('');
     setPhase('character-selection');
@@ -544,21 +546,20 @@ export default function GamePage() {
     setPendingChoice(null);
   };
 
-  const handleResume = () => {
-    if (!savedRun) return;
-    setPlayerName(savedRun.playerName);
-    // Ensure flags exist for saves created before this feature
-    const gs = { ...savedRun.gameState, flags: savedRun.gameState.flags ?? {} };
+  const handleResume = (save: SaveData) => {
+    setActiveSlot(save.slot);
+    setPlayerName(save.playerName);
+    const gs = { ...save.gameState, flags: save.gameState.flags ?? {} };
     setGameState(gs);
-    setUpgradeState(savedRun.upgradeState);
+    setUpgradeState(save.upgradeState);
     setPhase('playing');
-    setSavedRun(null);
-    showNotification(`Welcome back, ${savedRun.playerName}!`);
+    setSavedRuns([]);
+    showNotification(`Welcome back, ${save.playerName}!`);
   };
 
-  const handleNewGameFromResume = () => {
-    SaveEngine.clear();
-    setSavedRun(null);
+  const handleNewGameFromResume = (slot: number) => {
+    setActiveSlot(slot);
+    setSavedRuns([]);
     setPhase('character-selection');
   };
 
@@ -593,7 +594,7 @@ export default function GamePage() {
 
 
   // -- Early returns --
-  if (phase === 'resume-prompt' && savedRun) return <ResumePrompt save={savedRun} onResume={handleResume} onNewGame={handleNewGameFromResume} />;
+  if (phase === 'resume-prompt' && savedRuns.length > 0) return <ResumePrompt saves={savedRuns} onResume={handleResume} onNewGame={handleNewGameFromResume} />;
   if (phase === 'character-selection') return <CharacterSelection onSelect={handleCharacterSelect} />;
   if (!gameState) return null;
 
@@ -641,9 +642,10 @@ export default function GamePage() {
             enemy={gameState.currentEnemy ?? combatEnemy}
             onAttack={handleAttack}
             onUseSkill={handleUseSkill}
-            onFlee={handleFlee}
+            onFlee={!fleeUsed ? handleFlee : undefined}
             onBribe={gameState.currentEnemy?.canBeBribed && gameState.player.coins >= CombatEngine.getBribeCost(gameState.currentEnemy) ? handleBribe : undefined}
             onTruce={gameState.currentEnemy?.willAcceptTruce ? handleTruce : undefined}
+            onOpenInventory={() => setIsInventoryOpen(true)}
             bribeCost={gameState.currentEnemy ? CombatEngine.getBribeCost(gameState.currentEnemy) : undefined}
             combatLog={combatLog}
             isPlayerTurn={true}

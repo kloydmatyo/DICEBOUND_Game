@@ -14,7 +14,6 @@ interface GameBoardProps {
 
 const TILE_COLOR: Record<string, string> = {
   start: 'bg-green-500',
-  normal: 'bg-gray-500',
   enemy: 'bg-red-500',
   elite: 'bg-purple-700',
   shop: 'bg-yellow-500',
@@ -22,6 +21,24 @@ const TILE_COLOR: Record<string, string> = {
   boss: 'bg-red-800',
   trap: 'bg-orange-600',
 };
+
+/**
+ * Draw an orthogonal bracket connector: horizontal from source to midpoint X,
+ * then vertical to target Y, then horizontal to target — matching the tree diagram style.
+ */
+function drawBracketLine(
+  ctx: CanvasRenderingContext2D,
+  x1: number, y1: number,
+  x2: number, y2: number
+) {
+  const midX = (x1 + x2) / 2;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(midX, y1);
+  ctx.lineTo(midX, y2);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+}
 
 function getTileEmoji(tile: BoardTile): string {
   if (tile.type === 'trap') {
@@ -33,7 +50,6 @@ function getTileEmoji(tile: BoardTile): string {
   }
   const map: Record<string, string> = {
     start: String.fromCodePoint(0x1F3C1),
-    normal: String.fromCharCode(0x2B1C),
     enemy: String.fromCodePoint(0x1F479),
     elite: String.fromCodePoint(0x1F480),
     shop: String.fromCodePoint(0x1F3EA),
@@ -78,25 +94,8 @@ export default function GameBoard({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const currentTile = tiles.find(t => t.id === currentPosition);
-    if (!currentTile?.nextIds) return;
 
-    // Draw lines from current tile to immediate next tiles
-    for (const nextId of currentTile.nextIds) {
-      const next = tiles.find(t => t.id === nextId);
-      if (!next) continue;
-      const highlighted = choosableTileIds.includes(nextId);
-      ctx.strokeStyle = highlighted ? 'rgba(255,215,0,0.95)' : 'rgba(78,205,196,0.4)';
-      ctx.lineWidth = highlighted ? 3.5 * scale : 2 * scale;
-      ctx.setLineDash(highlighted ? [] : [6 * scale, 5 * scale]);
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(currentTile.x * scale, currentTile.y * scale);
-      ctx.lineTo(next.x * scale, next.y * scale);
-      ctx.stroke();
-    }
-
-    // Draw visited trail
+    // Draw visited trail first (behind everything)
     const visitedSet = new Set(tiles.filter(t => t.visited).map(t => t.id));
     for (const tile of tiles) {
       if (!visitedSet.has(tile.id) || !tile.nextIds) continue;
@@ -104,15 +103,29 @@ export default function GameBoard({
         if (!visitedSet.has(nextId)) continue;
         const next = tiles.find(t => t.id === nextId);
         if (!next) continue;
-        ctx.strokeStyle = 'rgba(255,215,0,0.25)';
+        ctx.strokeStyle = 'rgba(255,215,0,0.3)';
         ctx.lineWidth = 2 * scale;
         ctx.setLineDash([]);
-        ctx.beginPath();
-        ctx.moveTo(tile.x * scale, tile.y * scale);
-        ctx.lineTo(next.x * scale, next.y * scale);
-        ctx.stroke();
+        ctx.lineCap = 'square';
+        drawBracketLine(ctx, tile.x * scale, tile.y * scale, next.x * scale, next.y * scale);
       }
     }
+
+    // Draw lines from current tile to immediate next tiles
+    const currentTile = tiles.find(t => t.id === currentPosition);
+    if (currentTile?.nextIds) {
+      for (const nextId of currentTile.nextIds) {
+        const next = tiles.find(t => t.id === nextId);
+        if (!next) continue;
+        const highlighted = choosableTileIds.includes(nextId);
+        ctx.strokeStyle = highlighted ? 'rgba(255,215,0,0.95)' : 'rgba(78,205,196,0.5)';
+        ctx.lineWidth = highlighted ? 3.5 * scale : 2 * scale;
+        ctx.setLineDash(highlighted ? [] : [6 * scale, 4 * scale]);
+        ctx.lineCap = 'square';
+        drawBracketLine(ctx, currentTile.x * scale, currentTile.y * scale, next.x * scale, next.y * scale);
+      }
+    }
+
     ctx.setLineDash([]);
   }, [tiles, scale, choosableTileIds, currentPosition]);
 
@@ -182,13 +195,13 @@ export default function GameBoard({
           );
         })}
         <motion.div
-          animate={{ x: tokenX, y: tokenY - tileSize * 0.55 }}
+          animate={{ x: tokenX, y: tokenY }}
           transition={{ type: 'tween', duration: 0.25, ease: 'easeInOut' }}
           className="absolute pointer-events-none z-30"
-          style={{ marginLeft: -half * 0.5 }}
+          style={{ marginLeft: -(half * 1.8), marginTop: -(half * 0.5) }}
         >
           <motion.div
-            animate={{ y: [-4, 4, -4] }}
+            animate={{ x: [-3, 3, -3] }}
             transition={{ repeat: Infinity, duration: 1.6, ease: 'easeInOut' }}
             className="drop-shadow-lg select-none"
           >

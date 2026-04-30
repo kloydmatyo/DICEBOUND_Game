@@ -11,7 +11,7 @@ const CANVAS_H = 600;
 // Vein generation config
 const VEIN_DEPTHS = 8;          // number of depth layers (excluding start)
 const VEIN_TOTAL_NODES = 18;    // total interior nodes (excluding start + boss)
-const JITTER = 38;              // max px of organic position noise
+const JITTER = 20;              // max px of organic position noise (reduced for horizontal tree)
 
 export class BoardEngine {
   static readonly BOSS_FLOOR_INDICES = [5, 10];
@@ -28,7 +28,7 @@ export class BoardEngine {
     isBoss: boolean,
     totalDepths: number
   ): BoardTile['type'][] {
-    const types: BoardTile['type'][] = new Array(nodes.length).fill(TILE_TYPES.NORMAL);
+    const types: BoardTile['type'][] = new Array(nodes.length).fill(TILE_TYPES.ENEMY);
     let shopPlaced = false;
 
     for (let i = 0; i < nodes.length; i++) {
@@ -45,13 +45,12 @@ export class BoardEngine {
         continue;
       }
 
-      // Weighted pool shifts with depth
+      // Weighted pool shifts with depth — no normal/safe tiles
       const r = Math.random();
       if (progress > 0.6 && r < 0.22) { types[i] = TILE_TYPES.ELITE; continue; }
       if (progress > 0.4 && r < 0.12) { types[i] = TILE_TYPES.TRAP; continue; }
-      if (r < 0.18) { types[i] = TILE_TYPES.EVENT; continue; }
-      if (r < 0.62) { types[i] = TILE_TYPES.ENEMY; continue; }
-      types[i] = TILE_TYPES.NORMAL;
+      if (r < 0.22) { types[i] = TILE_TYPES.EVENT; continue; }
+      types[i] = TILE_TYPES.ENEMY;
     }
 
     // Ensure shop was placed somewhere
@@ -96,11 +95,12 @@ export class BoardEngine {
     const allDepths = depthWidths.length; // totalDepths + 1 (includes boss layer)
 
     // ── Step 2: Place nodes with organic jitter ──────────────────────────────
-    const marginX = 80;
-    const marginY = 60;
-    const usableH = CANVAS_H - marginY * 2;
+    // Horizontal tree: depth increases left→right (X axis), columns spread top→bottom (Y axis)
+    const marginX = 70;
+    const marginY = 50;
     const usableW = CANVAS_W - marginX * 2;
-    const depthSpacing = usableH / (allDepths - 1);
+    const usableH = CANVAS_H - marginY * 2;
+    const depthSpacing = usableW / (allDepths - 1);
 
     const depthNodes: number[][] = []; // depthNodes[d] = array of tile ids at depth d
     const rawNodes: { id: number; depth: number; x: number; y: number }[] = [];
@@ -108,17 +108,17 @@ export class BoardEngine {
 
     for (let d = 0; d < allDepths; d++) {
       const count = depthWidths[d];
-      const baseY = marginY + d * depthSpacing;
+      const baseX = marginX + d * depthSpacing;
       const ids: number[] = [];
 
       for (let col = 0; col < count; col++) {
-        const baseX = count === 1
-          ? CENTER_X
-          : marginX + (col / (count - 1)) * usableW;
+        const baseY = count === 1
+          ? CENTER_Y
+          : marginY + (col / (count - 1)) * usableH;
 
         // Organic jitter (none on start/boss)
-        const jx = (d === 0 || d === allDepths - 1) ? 0 : (Math.random() - 0.5) * JITTER * 2;
-        const jy = (d === 0 || d === allDepths - 1) ? 0 : (Math.random() - 0.5) * JITTER;
+        const jy = (d === 0 || d === allDepths - 1) ? 0 : (Math.random() - 0.5) * JITTER * 2;
+        const jx = (d === 0 || d === allDepths - 1) ? 0 : (Math.random() - 0.5) * JITTER;
 
         rawNodes.push({ id: nextId, depth: d, x: Math.round(baseX + jx), y: Math.round(baseY + jy) });
         ids.push(nextId);

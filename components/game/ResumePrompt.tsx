@@ -1,58 +1,87 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { SaveData } from '@/lib/game-engine/SaveEngine';
+import { SaveData, SaveEngine } from '@/lib/game-engine/SaveEngine';
 
 interface ResumePromptProps {
-  save: SaveData;
-  onResume: () => void;
-  onNewGame: () => void;
+  saves: SaveData[];
+  onResume: (save: SaveData) => void;
+  onNewGame: (slot: number) => void;
 }
 
-export default function ResumePrompt({ save, onResume, onNewGame }: ResumePromptProps) {
+function timeAgo(ts: number): string {
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+export default function ResumePrompt({ saves, onResume, onNewGame }: ResumePromptProps) {
+  const filledSlots = saves.map(s => s.slot);
+  const emptySlots = Array.from({ length: SaveEngine.MAX_SLOTS }, (_, i) => i)
+    .filter(i => !filledSlots.includes(i));
+
   return (
     <div className="min-h-screen w-full bg-game-bg flex items-center justify-center px-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-game-primary border-2 border-yellow-500 rounded-2xl p-8 max-w-sm w-full shadow-2xl text-center"
+        className="bg-game-primary border-2 border-yellow-500 rounded-2xl p-6 max-w-md w-full shadow-2xl"
       >
-        <div className="text-3xl mb-3">⚠️</div>
-        <h2 className="text-white font-black text-xl mb-1">Resume previous run?</h2>
-        <p className="text-gray-400 text-sm mb-5">
-          A saved run was found on this device.
-        </p>
+        <h2 className="text-white font-black text-xl mb-1 text-center">Save Slots</h2>
+        <p className="text-gray-400 text-sm mb-5 text-center">Choose a slot to continue or start fresh</p>
 
-        <div className="bg-game-bg rounded-xl px-4 py-3 mb-6 text-left space-y-1">
-          <div className="text-gray-400 text-xs uppercase tracking-wider">Saved Run</div>
-          <div className="text-white font-bold">
-            👤 {save.playerName}
-          </div>
-          <div className="text-game-gold text-sm">
-            Floor {save.gameState.currentFloor} &nbsp;·&nbsp; {save.gameState.player.class}
-          </div>
-          <div className="text-gray-500 text-xs">
-            {save.gameState.player.health}/{save.gameState.player.maxHealth} HP &nbsp;·&nbsp; {save.gameState.player.coins} coins
-          </div>
-        </div>
+        <div className="flex flex-col gap-3">
+          {/* Filled slots */}
+          {saves.map(save => (
+            <motion.button
+              key={save.slot}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onResume(save)}
+              className="w-full bg-game-bg border-2 border-game-gold rounded-xl px-4 py-3 text-left hover:border-yellow-300 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-white font-bold text-sm">
+                    Slot {save.slot + 1} — {save.playerName}
+                  </div>
+                  <div className="text-game-gold text-xs mt-0.5">
+                    Floor {save.gameState.currentFloor} · {save.gameState.player.class}
+                  </div>
+                  <div className="text-gray-500 text-xs">
+                    {save.gameState.player.health}/{save.gameState.player.maxHealth} HP · {save.gameState.player.coins} coins
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="text-xs text-gray-400">{timeAgo(save.savedAt)}</span>
+                  <span className="text-xs bg-game-gold text-black font-bold px-2 py-0.5 rounded">▶ Resume</span>
+                </div>
+              </div>
+            </motion.button>
+          ))}
 
-        <div className="flex gap-3">
-          <motion.button
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.96 }}
-            onClick={onResume}
-            className="flex-1 bg-game-gold text-black font-black py-3 rounded-xl text-sm shadow-lg"
-          >
-            ▶ Resume
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.96 }}
-            onClick={onNewGame}
-            className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl text-sm"
-          >
-            ✕ New Game
-          </motion.button>
+          {/* Empty slots */}
+          {emptySlots.map(slot => (
+            <motion.button
+              key={slot}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onNewGame(slot)}
+              className="w-full bg-game-bg border-2 border-dashed border-gray-600 rounded-xl px-4 py-3 text-left hover:border-gray-400 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-gray-400 font-bold text-sm">Slot {slot + 1} — Empty</div>
+                  <div className="text-gray-600 text-xs mt-0.5">Start a new adventure</div>
+                </div>
+                <span className="text-xs bg-gray-700 text-gray-300 font-bold px-2 py-0.5 rounded">+ New</span>
+              </div>
+            </motion.button>
+          ))}
         </div>
       </motion.div>
     </div>

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { LPCSelections, BodyType, ItemMeta, CategoryNode } from './types';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { LPCSelections, BodyType, ItemMeta } from './types';
+import { getVariantThumbnailUrl, FRAME_SIZE } from './LPCRenderer';
 
 interface Props {
   selections: LPCSelections;
@@ -11,9 +12,136 @@ interface Props {
   onBodyTypeChange: (bt: BodyType) => void;
 }
 
-const BODY_TYPES: BodyType[] = ['male', 'female', 'teen', 'child', 'muscular', 'pregnant'];
-
+const EXCLUDED_ITEMS = new Set([
+  'wheelchair',
+  'wings_lizard_bat',
+  'wings_lizard',
+  'wings_bat',
+  'wings_feathered',
+  'wings_lizard_alt',
+  'wings_lunar',
+  'wings_dragonfly_transparent',
+  'wings_dragonfly',
+  'wings_monarch_dots',
+  'wings_monarch_edge',
+  'wings_monarch',
+  'wings_pixie_transparent',
+  'wings_pixie',
+  'hat_accessory_wings',
+  'tail_lizard',
+  'tail_cat',
+  'tail_lizard_alt',
+  'tail_wolf_fluffy',
+  'tail_wolf',
+]);
+const BODY_TYPES: BodyType[] = ['male', 'female'];
 const TOP_CATEGORIES = ['body', 'head', 'hair', 'headwear', 'torso', 'arms', 'legs', 'feet', 'weapons', 'tools'];
+
+// Idle south frame: row 22 (idle offset / FRAME_SIZE), direction 2 = south, frame 0
+const IDLE_ROW = 22;
+const SOUTH_DIR = 2;
+const THUMB_SIZE = 40; // display px
+
+/**
+ * Renders a single idle-south frame from a sprite sheet URL onto a small canvas.
+ */
+function VariantThumb({
+  sheetUrl,
+  idleSheetUrl,
+  label,
+  selected,
+  onClick,
+}: {
+  sheetUrl: string | null;
+  idleSheetUrl?: string | null;
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!sheetUrl) { setFailed(true); return; }
+    setLoaded(false);
+    setFailed(false);
+
+    function tryDraw(url: string, onFail: () => void) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.imageSmoothingEnabled = false;
+
+        // Try walk south (row 10, frame 1) first
+        const tryRows = [
+          { row: 8 + SOUTH_DIR, frame: 1 },   // walk south
+          { row: IDLE_ROW + SOUTH_DIR, frame: 0 }, // idle south
+          { row: SOUTH_DIR, frame: 0 },         // spellcast south
+          { row: 12 + SOUTH_DIR, frame: 0 },    // slash south
+        ];
+
+        for (const { row, frame } of tryRows) {
+          ctx.clearRect(0, 0, THUMB_SIZE, THUMB_SIZE);
+          ctx.drawImage(img, frame * FRAME_SIZE, row * FRAME_SIZE, FRAME_SIZE, FRAME_SIZE, 0, 0, THUMB_SIZE, THUMB_SIZE);
+          const pixels = ctx.getImageData(0, 0, THUMB_SIZE, THUMB_SIZE).data;
+          const hasContent = pixels.some((v, i) => i % 4 === 3 && v > 10);
+          if (hasContent) { setLoaded(true); return; }
+        }
+
+        // Nothing rendered — fail so fallback text shows
+        onFail();
+      };
+      img.onerror = onFail;
+      img.src = url;
+    }
+
+    tryDraw(sheetUrl, () => {
+      // walk failed — try idle URL if available
+      if (idleSheetUrl && idleSheetUrl !== sheetUrl) {
+        tryDraw(idleSheetUrl, () => setFailed(true));
+      } else {
+        setFailed(true);
+      }
+    });
+  }, [sheetUrl, idleSheetUrl]);
+
+  return (
+    <button
+      onClick={onClick}
+      title={label}
+      className={`relative flex flex-col items-center gap-0.5 p-1 rounded-lg border-2 transition-all hover:scale-105 ${
+        selected
+          ? 'border-game-gold bg-game-primary shadow-[0_0_8px_rgba(255,215,0,0.5)]'
+          : 'border-game-secondary bg-game-bg hover:border-gray-500'
+      }`}
+      style={{ width: THUMB_SIZE + 8, minWidth: THUMB_SIZE + 8 }}
+    >
+      <canvas
+        ref={canvasRef}
+        width={THUMB_SIZE}
+        height={THUMB_SIZE}
+        style={{ imageRendering: 'pixelated', display: loaded ? 'block' : 'none' }}
+      />
+      {/* Fallback while loading or on error */}
+      {(!loaded || failed) && (
+        <div
+          className="flex items-center justify-center bg-game-secondary rounded text-gray-400 text-[8px] text-center leading-tight"
+          style={{ width: THUMB_SIZE, height: THUMB_SIZE }}
+        >
+          {failed ? label.slice(0, 6) : '…'}
+        </div>
+      )}
+      <span className={`text-[8px] leading-tight text-center truncate w-full ${selected ? 'text-game-gold font-bold' : 'text-gray-400'}`}>
+        {label.replaceAll('_', ' ')}
+      </span>
+    </button>
+  );
+}
 
 export default function LPCItemPicker({ selections, bodyType, onSelect, onDeselect, onBodyTypeChange }: Props) {
   const [activeCategory, setActiveCategory] = useState<string>('body');
@@ -21,7 +149,6 @@ export default function LPCItemPicker({ selections, bodyType, onSelect, onDesele
 
   const metadata: Record<string, ItemMeta> = useMemo(() => (window as any).itemMetadata ?? {}, []);
 
-  // Group items by their top-level path category
   const itemsByCategory = useMemo(() => {
     const groups: Record<string, string[]> = {};
     for (const [itemId, meta] of Object.entries(metadata)) {
@@ -34,11 +161,11 @@ export default function LPCItemPicker({ selections, bodyType, onSelect, onDesele
 
   const currentItems = useMemo(() => {
     const items = itemsByCategory[activeCategory] ?? [];
-    if (!search.trim()) return items;
-    return items.filter(id => metadata[id]?.name.toLowerCase().includes(search.toLowerCase()));
+    const filtered = items.filter(id => !EXCLUDED_ITEMS.has(id));
+    if (!search.trim()) return filtered;
+    return filtered.filter(id => metadata[id]?.name.toLowerCase().includes(search.toLowerCase()));
   }, [activeCategory, itemsByCategory, search, metadata]);
 
-  // Get currently selected group for an item
   function getSelectedVariant(itemId: string): string | null {
     const meta = metadata[itemId];
     if (!meta) return null;
@@ -115,6 +242,8 @@ export default function LPCItemPicker({ selections, bodyType, onSelect, onDesele
               key={itemId}
               itemId={itemId}
               meta={meta}
+              bodyType={bodyType}
+              selections={selections}
               selectedVariant={selectedVariant}
               groupSelected={groupSelected}
               onSelect={onSelect}
@@ -130,15 +259,18 @@ export default function LPCItemPicker({ selections, bodyType, onSelect, onDesele
 interface ItemRowProps {
   itemId: string;
   meta: ItemMeta;
+  bodyType: BodyType;
+  selections: LPCSelections;
   selectedVariant: string | null;
   groupSelected: boolean;
   onSelect: (itemId: string, variant: string) => void;
   onDeselect: () => void;
 }
 
-function ItemRow({ itemId, meta, selectedVariant, groupSelected, onSelect, onDeselect }: ItemRowProps) {
+function ItemRow({ itemId, meta, bodyType, selections, selectedVariant, groupSelected, onSelect, onDeselect }: ItemRowProps) {
   const [expanded, setExpanded] = useState(false);
   const isSelected = selectedVariant !== null;
+  const hasVariants = meta.variants && meta.variants.length > 0;
 
   return (
     <div className={`rounded border transition-colors ${
@@ -147,7 +279,7 @@ function ItemRow({ itemId, meta, selectedVariant, groupSelected, onSelect, onDes
       <div
         className="flex items-center justify-between px-3 py-2 cursor-pointer"
         onClick={() => {
-          if (meta.variants && meta.variants.length > 0) {
+          if (hasVariants) {
             setExpanded(e => !e);
           } else {
             if (isSelected) onDeselect();
@@ -157,7 +289,9 @@ function ItemRow({ itemId, meta, selectedVariant, groupSelected, onSelect, onDes
       >
         <span className={`text-xs font-medium ${isSelected ? 'text-game-gold' : 'text-gray-300'}`}>
           {meta.name}
-          {isSelected && <span className="ml-1 text-gray-400">({selectedVariant})</span>}
+          {isSelected && selectedVariant && (
+            <span className="ml-1 text-gray-400 capitalize">({selectedVariant.replaceAll('_', ' ')})</span>
+          )}
         </span>
         <div className="flex items-center gap-2">
           {isSelected && (
@@ -168,27 +302,28 @@ function ItemRow({ itemId, meta, selectedVariant, groupSelected, onSelect, onDes
               ✕
             </button>
           )}
-          {meta.variants && meta.variants.length > 0 && (
+          {hasVariants && (
             <span className="text-gray-500 text-xs">{expanded ? '▲' : '▼'}</span>
           )}
         </div>
       </div>
 
-      {expanded && meta.variants && meta.variants.length > 0 && (
-        <div className="flex flex-wrap gap-1 px-3 pb-2">
-          {meta.variants.map(variant => (
-            <button
-              key={variant}
-              onClick={() => onSelect(itemId, variant)}
-              className={`px-2 py-0.5 text-xs rounded capitalize transition-colors ${
-                selectedVariant === variant
-                  ? 'bg-game-gold text-black font-bold'
-                  : 'bg-game-secondary text-gray-300 hover:bg-game-primary'
-              }`}
-            >
-              {variant.replaceAll('_', ' ')}
-            </button>
-          ))}
+      {expanded && hasVariants && (
+        <div className="flex flex-wrap gap-2 px-3 pb-3">
+          {meta.variants.map(variant => {
+            const sheetUrl = getVariantThumbnailUrl(meta, variant, bodyType, selections);
+            const idleSheetUrl = getVariantThumbnailUrl(meta, variant, bodyType, selections, 'idle');
+            return (
+              <VariantThumb
+                key={variant}
+                sheetUrl={sheetUrl}
+                idleSheetUrl={idleSheetUrl}
+                label={variant}
+                selected={selectedVariant === variant}
+                onClick={() => onSelect(itemId, variant)}
+              />
+            );
+          })}
         </div>
       )}
     </div>

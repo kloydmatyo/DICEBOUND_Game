@@ -88,15 +88,8 @@ export default function LPCCharacterCreator({ onConfirm }: Props) {
             ))}
           </div>
 
-          {/* Current selections summary */}
-          <div className="w-full text-xs text-gray-400 space-y-0.5 max-h-32 overflow-y-auto">
-            {Object.entries(selections).map(([group, sel]) => (
-              <div key={group} className="flex justify-between">
-                <span className="text-gray-500 capitalize">{group}:</span>
-                <span className="text-gray-300">{sel.name}</span>
-              </div>
-            ))}
-          </div>
+          {/* Current selections count */}
+          <p className="text-xs text-gray-500">{Object.keys(selections).length} items equipped</p>
 
           <button
             onClick={resetSelections}

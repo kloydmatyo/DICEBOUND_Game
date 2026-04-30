@@ -46,15 +46,20 @@ function es6DynamicTemplate(template: string, vars: Record<string, string | unde
   return template.replace(/\${(.*?)}/g, (_, g) => vars[g] ?? `\${${g}}`);
 }
 
-function replaceInPath(path: string, selections: LPCSelections): string {
+function replaceInPath(path: string, selections: LPCSelections, replaceMap?: Record<string, Record<string, string>>): string {
   if (!path.includes('${')) return path;
+  const metadata: Record<string, any> = (typeof window !== 'undefined' ? (window as any).itemMetadata : null) ?? {};
   const vars: Record<string, string> = {};
   for (const [group, sel] of Object.entries(selections)) {
-    vars[group] = sel.name.split(' (')[0].replaceAll(' ', '_');
+    let val = sel.name.split(' (')[0].replaceAll(' ', '_');
+    // Apply replace_in_path mapping if available
+    const itemMeta = metadata[sel.itemId];
+    const groupMap = replaceMap?.[group] ?? itemMeta?.replace_in_path?.[group];
+    if (groupMap && groupMap[val]) val = groupMap[val];
+    vars[group] = val;
   }
   return es6DynamicTemplate(path, vars);
 }
-
 function getSpritePath(
   meta: ItemMeta,
   variant: string,
@@ -209,6 +214,32 @@ export function extractAnimationStrip(
  */
 export function exportFullSheet(canvas: HTMLCanvasElement): string {
   return canvas.toDataURL('image/png');
+}
+
+/**
+ * Get the sprite sheet URL for a given item/variant/bodyType (layer 1, walk anim).
+ * Falls back to constructing the walk path directly if animation metadata is missing.
+ */
+export function getVariantThumbnailUrl(
+  meta: ItemMeta,
+  variant: string,
+  bodyType: BodyType,
+  selections: LPCSelections = {},
+  anim: 'walk' | 'idle' = 'walk'
+): string | null {
+  const base = process.env.NEXT_PUBLIC_SPRITES_BASE_URL || '/spritesheets';
+  const layer = meta.layers?.['layer_1'];
+  if (!layer) return null;
+  let basePath = (layer as any)[bodyType];
+  if (!basePath) return null;
+  // Resolve template variables using selections + replace_in_path
+  if (basePath.includes('${')) {
+    basePath = replaceInPath(basePath, selections, (meta as any).replace_in_path);
+    // If still unresolved, skip
+    if (basePath.includes('${')) return null;
+  }
+  const variantFile = variant.replaceAll(' ', '_');
+  return `${base}/${basePath}${anim}/${variantFile}.png`;
 }
 
 export { FRAME_SIZE, SHEET_WIDTH, SHEET_HEIGHT, ANIMATION_OFFSETS };
