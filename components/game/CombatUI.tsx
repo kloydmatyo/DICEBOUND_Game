@@ -6,8 +6,74 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ENEMY_SPRITES } from '@/lib/game-engine/constants';
 import SpriteAnimator from '@/components/game/SpriteAnimator';
 
+// ── Skill button with tooltip ──────────────────────────────────────────────
+function SkillButton({ skill, disabled, onClick }: {
+  skill: import('@/lib/game-engine').Skill;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div className="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+      {hovered && <SkillTooltip skill={skill} />}
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        className="w-full py-2 px-3 rounded-lg font-bold text-xs bg-yellow-600/20 hover:bg-yellow-500/30 border border-yellow-400/30 disabled:opacity-40 text-white transition-all active:scale-95 truncate"
+      >
+        {skill.name}
+        {skill.currentCooldown > 0 && <span className="ml-1 text-red-400">({skill.currentCooldown})</span>}
+      </button>
+    </div>
+  );
+}
+
 export type EnemyAnimState = 'Idle' | 'Hurt' | 'Attack' | 'Death';
 type ActionMenu = 'main' | 'fight';
+function SkillTooltip({ skill }: { skill: import('@/lib/game-engine').Skill }) {
+  const effectLabel = () => {
+    switch (skill.effect.type) {
+      case 'damage': return `Deals ${skill.effect.value ? `${Math.round(skill.effect.value * 100)}%` : '100%'} ATK damage`;
+      case 'heal':   return `Restores ${skill.effect.value ?? 0} HP`;
+      case 'buff':   return `Buffs ${skill.effect.target ?? 'self'} for ${skill.effect.duration ?? 1} turns`;
+      case 'debuff': return `Debuffs enemy for ${skill.effect.duration ?? 1} turns`;
+      case 'special': return `Special: ${skill.effect.value ? `${Math.round(skill.effect.value * 100)}%` : '150%'} ATK`;
+      default: return skill.effect.type;
+    }
+  };
+
+  return (
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none w-48">
+      <div className="bg-[#0a0e1a] border border-yellow-400/40 rounded-xl px-3 py-2.5 shadow-2xl text-left">
+        <p className="text-yellow-300 font-black text-sm mb-1">{skill.name}</p>
+        <p className="text-gray-300 text-xs leading-relaxed mb-2">{skill.description}</p>
+        <div className="space-y-0.5 border-t border-white/10 pt-1.5">
+          <div className="flex justify-between text-[10px]">
+            <span className="text-gray-400">Effect</span>
+            <span className="text-white font-medium">{effectLabel()}</span>
+          </div>
+          <div className="flex justify-between text-[10px]">
+            <span className="text-gray-400">Type</span>
+            <span className="text-white font-medium capitalize">{skill.effect.type}</span>
+          </div>
+          <div className="flex justify-between text-[10px]">
+            <span className="text-gray-400">Cooldown</span>
+            <span className="text-white font-medium">{skill.cooldown === 0 ? 'None' : `${skill.cooldown} turns`}</span>
+          </div>
+          {skill.currentCooldown > 0 && (
+            <div className="flex justify-between text-[10px]">
+              <span className="text-gray-400">Ready in</span>
+              <span className="text-red-400 font-bold">{skill.currentCooldown} turn{skill.currentCooldown !== 1 ? 's' : ''}</span>
+            </div>
+          )}
+        </div>
+        {/* Arrow */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0"
+          style={{ borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '6px solid rgba(234,179,8,0.4)' }} />
+      </div>
+    </div>
+  );
+}
 
 function EnemySprite({ enemy, animState }: { enemy: Enemy; animState: EnemyAnimState }) {
   const sprite = ENEMY_SPRITES[enemy.type];
@@ -211,11 +277,12 @@ export default function CombatUI({
                       ⚔️ Attack
                     </button>
                     {activeSkills.map(skill => (
-                      <button key={skill.id} onClick={() => { onUseSkill(skill.id); setMenu('main'); }}
-                        disabled={actionsDisabled || skill.currentCooldown > 0} title={skill.description}
-                        className="py-2 px-3 rounded-lg font-bold text-xs bg-yellow-600/20 hover:bg-yellow-500/30 border border-yellow-400/30 disabled:opacity-40 text-white transition-all active:scale-95 truncate">
-                        {skill.name}{skill.currentCooldown > 0 && <span className="ml-1 text-red-400">({skill.currentCooldown})</span>}
-                      </button>
+                      <SkillButton
+                        key={skill.id}
+                        skill={skill}
+                        disabled={actionsDisabled || skill.currentCooldown > 0}
+                        onClick={() => { onUseSkill(skill.id); setMenu('main'); }}
+                      />
                     ))}
                   </div>
                   <button onClick={() => setMenu('main')} className="text-xs text-gray-400 hover:text-white text-left pl-1 transition-colors">

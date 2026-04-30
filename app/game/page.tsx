@@ -622,6 +622,22 @@ export default function GamePage() {
         <DiceRoller onRoll={handleDiceRoll} lastRoll={lastDiceRoll} disabled={false} />
       )}
 
+            {/* Shop re-entry  visible while player is on a shop tile */}
+      {phase === 'playing' && !pendingChoice && (() => {
+        const currentTile = gameState.board.find(t => t.id === gameState.player.position);
+        if (currentTile?.type !== 'shop') return null;
+        return (
+          <div className="fixed bottom-36 sm:bottom-40 left-1/2 -translate-x-1/2 z-30">
+            <button
+              onClick={() => setIsShopOpen(true)}
+              className="px-6 py-2.5 rounded-xl font-bold text-sm bg-yellow-500 hover:bg-yellow-400 text-black shadow-lg border-b-4 border-yellow-700 transition-all active:scale-95"
+            >
+              Visit Shop
+            </button>
+          </div>
+        );
+      })()}
+
       {/* Dice Manipulator â€” shown after rolling, waiting for tile choice */}
       <AnimatePresence>
         {phase === 'playing' && !gameState.isInCombat && pendingChoice && (
@@ -704,7 +720,9 @@ export default function GamePage() {
                 <button onClick={debugNextFloor} className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded text-xs font-bold">â¬†ï¸ Next Floor</button>
                 <div className="border-t border-purple-400 pt-2 mt-1">
                   <p className="text-purple-300 text-xs mb-2 font-bold">âš”ï¸ Fight Enemy</p>
-                  <button onClick={() => { if (!gameState) return; const boss = EnemyEngine.createBoss(gameState.currentFloor); setGameState({ ...gameState, isInCombat: true, currentEnemy: boss }); setPhase('combat'); setCombatEnemy(boss); setCombatLog([`ðŸ’€ [DEBUG] ${boss.name} emerges!`]); }} className="w-full bg-yellow-800 hover:bg-yellow-700 text-white px-3 py-1.5 rounded text-xs font-bold mb-2 border border-yellow-500">
+                  <button onClick={() => { if (!gameState) return; const boss = EnemyEngine.createBoss(gameState.currentFloor); setGameState({ ...gameState, isInCombat: true, currentEnemy: boss })
+
+; setPhase('combat'); setCombatEnemy(boss); setCombatLog([`ðŸ’€ [DEBUG] ${boss.name} emerges!`]); }} className="w-full bg-yellow-800 hover:bg-yellow-700 text-white px-3 py-1.5 rounded text-xs font-bold mb-2 border border-yellow-500">
                     ðŸ’€ Fight Boss (F{gameState?.currentFloor})
                   </button>
                   {Object.entries(ENEMY_TYPES).map(([, type]) => (
