@@ -97,7 +97,7 @@ export class BoardEngine {
     // ── Step 2: Place nodes with organic jitter ──────────────────────────────
     // Horizontal tree: depth increases left→right (X axis), columns spread top→bottom (Y axis)
     const marginX = 70;
-    const marginY = 50;
+    const marginY = 80;
     const usableW = CANVAS_W - marginX * 2;
     const usableH = CANVAS_H - marginY * 2;
     const depthSpacing = usableW / (allDepths - 1);

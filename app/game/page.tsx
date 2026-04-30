@@ -602,11 +602,11 @@ export default function GamePage() {
 
   return (
     <div className="relative w-full h-screen bg-game-bg overflow-hidden flex flex-col">
-      <HUD player={gameState.player} floor={gameState.currentFloor} turnCount={gameState.turnCount} onInventoryClick={() => setIsInventoryOpen(true)} />
+      <HUD player={gameState.player} floor={gameState.currentFloor} turnCount={gameState.turnCount} onInventoryClick={() => setIsInventoryOpen(true)} playerSpriteUrl={(gameState.player as any).spriteDataUrl} />
 
-      {/* Board */}
-      <div className="flex-1 flex items-center justify-center px-1 sm:px-4 pt-16 pb-40 sm:pb-44">
-        <div className="w-full h-full max-w-7xl max-h-[650px] sm:max-h-[680px] relative">
+      {/* Board — no spacer needed, HUD floats over the board */}
+      <div className="flex-1 flex items-center justify-center px-1 sm:px-4 pb-44 sm:pb-48 min-h-0">
+        <div className="w-full h-full max-w-7xl relative">
           <GameBoard
             tiles={gameState.board}
             currentPosition={gameState.player.position}

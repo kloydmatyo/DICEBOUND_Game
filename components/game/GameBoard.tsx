@@ -78,7 +78,7 @@ export default function GameBoard({
       const ch = containerRef.current.clientHeight;
       const mobile = window.innerWidth < 640;
       const pad = mobile ? 10 : 30;
-      const s = Math.min((cw - pad) / 900, (ch - pad) / 600, mobile ? 1.15 : 1.0);
+      const s = Math.min((cw - pad) / 900, (ch - pad) / 600, mobile ? 1.15 : 1.4);
       setScale(s);
       setDimensions({ width: 900 * s, height: 600 * s });
     };

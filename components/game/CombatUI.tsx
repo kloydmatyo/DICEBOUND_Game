@@ -81,8 +81,9 @@ export default function CombatUI({
           <div className="absolute inset-0" style={{ backgroundImage: 'url(/background/Arena_BG.png)', backgroundSize: 'cover', backgroundPosition: 'center 40%' }} />
           <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80" />
 
-          {/* Player HP — bottom left */}
-          <div className="absolute bottom-4 left-4 z-10 w-52 bg-black/70 rounded-xl px-3 py-2 border border-white/10">
+          {/* Player HP — above player sprite */}
+          <div className="absolute z-10 w-52 bg-black/70 rounded-xl px-3 py-2 border border-white/10"
+            style={{ left: '29%', bottom: 'calc(18% + 175px)', transform: 'translateX(-50%)' }}>
             <p className="text-yellow-300 font-extrabold text-xs tracking-widest mb-1">{player.class.toUpperCase()}</p>
             <HealthBar current={player.health} max={player.maxHealth} color="bg-emerald-500" />
             {player.class === 'mage' && player.maxMana !== undefined && (
@@ -102,21 +103,22 @@ export default function CombatUI({
               <div className="flex flex-wrap gap-1 mt-1">
                 {player.statusEffects.map((e, i) => (
                   <span key={i} className="text-[9px] bg-black/40 border border-white/15 rounded px-1 py-0.5 text-white/70">
-                    {e.type === 'burn' ? '🔥' : e.type === 'poison' ? '🧪' : e.type === 'cursed' ? '💀' : e.type === 'blessed' ? '✨' : '⚡'} {e.type} {e.duration}t
+                    {e.type === 'burn' ? '�' : e.type === 'poison' ? '🧪' : e.type === 'cursed' ? '�💀' : e.type === 'blessed' ? '✨' : '⚡'} {e.type} {e.duration}t
                   </span>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Enemy HP — top right */}
-          <div className="absolute top-4 right-4 z-10 w-52 bg-black/70 rounded-xl px-3 py-2 border border-white/10">
+          {/* Enemy HP — above enemy sprite */}
+          <div className="absolute z-10 w-52 bg-black/70 rounded-xl px-3 py-2 border border-white/10"
+            style={{ left: '72%', bottom: 'calc(30% + 110px)', transform: 'translateX(-50%)' }}>
             <p className="text-red-400 font-extrabold text-xs tracking-widest mb-1">{enemy.name.toUpperCase()}</p>
             <HealthBar current={enemy.health} max={enemy.maxHealth} color="bg-red-500" />
           </div>
 
           {/* Player sprite — bottom left */}
-          <div className="absolute z-10 flex flex-col items-center" style={{ left: '25%', bottom: '22%', transform: 'translateX(-50%)' }}>
+          <div className="absolute z-10 flex flex-col items-center" style={{ left: '29%', bottom: '24%', transform: 'translateX(-50%)' }}>
             <motion.div
               animate={playerHurt ? { x: [-8, 8, -5, 5, 0], filter: ['brightness(3) saturate(0)', 'brightness(1) saturate(1)'] } : {}}
               transition={{ duration: 0.35 }}
@@ -124,13 +126,13 @@ export default function CombatUI({
             >
               {playerSpriteUrl
                 // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={playerSpriteUrl} alt="player" style={{ width: 96, height: 96, imageRendering: 'pixelated', objectFit: 'contain' }} />
-                : <span className="text-7xl">🛡️</span>}
+                ? <img src={playerSpriteUrl} alt="player" style={{ width: 160, height: 160, imageRendering: 'pixelated', objectFit: 'contain' }} />
+                : <span className="text-9xl">🛡️</span>}
             </motion.div>
           </div>
 
           {/* Enemy sprite — top right */}
-          <div className="absolute z-10 flex flex-col items-center" style={{ left: '72%', bottom: '30%', transform: 'translateX(-50%)' }}>
+          <div className="absolute z-10 flex flex-col items-center" style={{ left: '72%', bottom: '9%', transform: 'translateX(-50%)' }}>
             <EnemySprite enemy={enemy} animState={enemyAnimState} />
           </div>
         </div>
